@@ -1,0 +1,28 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <timestamp/>
+        <pattern>
+          <pattern>
+            {
+              "level": "%level",
+              "logger": "%logger",
+              "thread": "%thread",
+              "msg": "%message",
+              "traceId": "%X{traceId:-}",
+              "spanId": "%X{spanId:-}"
+            }
+          </pattern>
+        </pattern>
+        <mdc/>
+        <context/>
+        <stackTrace/>
+      </providers>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>

@@ -1,0 +1,5 @@
+agents:
+  Agent.chat: llama3.2:3b
+defaults:
+  temperature: 0.4
+  top_p: 0.9
