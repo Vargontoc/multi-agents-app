@@ -28,6 +28,7 @@ import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
+
     @Value("${multiagent.llm.url}")
     private String uri;
 

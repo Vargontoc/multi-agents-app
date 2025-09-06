@@ -78,7 +78,8 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
 
 
         } catch (IOException e) {
-            return Optional.of(ChatResult.error("Fallo en la generacion:" + e.getMessage()));
+            
+            return Optional.of(ChatResult.ok("Estoy teniendo problemas para pensar. Prueba otra vez en unos segundos.", Map.of("degraded", true, "error", e.getClass().getSimpleName())));
         }
     }
 

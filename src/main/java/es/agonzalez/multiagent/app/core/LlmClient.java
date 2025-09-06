@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -29,8 +30,10 @@ public class LlmClient {
     private HttpClient http;
 
     private HttpClient getClient() {
-        if(http == null)
+        if(http == null){
+            this.baseUrl = baseUrl == null ? "" : baseUrl.replaceAll("[\\r\\n]", "").replaceAll("/+$","");
             http = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build();
+        }
         return http;
     }
 
@@ -73,4 +76,12 @@ public class LlmClient {
         }
         return defaultValue;
     } 
+
+    @io.github.resilience4j.retry.annotation.Retry(name = "llm")
+    @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name="llm", fallbackMethod="fallback")
+    @io.github.resilience4j.timelimiter.annotation.TimeLimiter(name="llm")
+    @org.springframework.scheduling.annotation.Async
+    public CompletableFuture<LlmResponse> chatAsync(String model, List<Message> messages, Map<String, Object> params) {return CompletableFuture.supplyAsync(() -> this.chatBlocking(model, messages, params)); }
+    private LlmResponse chatBlocking(String model, List<Message> messages, Map<String, Object> params){ return chat(model, messages, params); }
+    public CompletableFuture<LlmResponse> fallback(String model, List<Message> messages, Map<String, Object> params, Throwable t) { return CompletableFuture.completedFuture(LlmResponse.of("Ahora mismo estoy ocupado. Intentelo de nuevo más tarde")); } 
 }   

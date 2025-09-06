@@ -27,6 +27,7 @@ public class FileMemoryStore  implements MemoryStore{
 
     @PostConstruct
     public void init() throws  IOException {
+         this.dataDir = dataDir == null ? "" : dataDir.replaceAll("[\\r\\n]", "").replaceAll("/+$","");
         basedir = Paths.get(dataDir, "history");
         Files.createDirectories(basedir);    
     }
@@ -73,10 +74,10 @@ public class FileMemoryStore  implements MemoryStore{
 
     @Override
     public void clearUser(String userId) throws IOException {
-        Path hist = Path.of("./data/history", userId + ".txt" );
+        Path hist = basedir.resolve("history").resolve(userId + ".txt" );
         Files.deleteIfExists(hist);
 
-        Path sum = Path.of("./data/summary", userId + ".txt" );
+        Path sum = basedir.resolve("summery").resolve(userId + ".txt" );
         Files.deleteIfExists(sum);
     }
 

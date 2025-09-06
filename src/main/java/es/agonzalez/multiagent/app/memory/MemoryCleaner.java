@@ -15,7 +15,6 @@ public class MemoryCleaner {
     private final Path historyDir = Path.of("./data/history");
     private final Path summaryDir = Path.of("./data/summary");
 
-    // TTL configurable (ej. 3 días)
     private final long ttlMs = TimeUnit.DAYS.toMillis(3);
 
     @Scheduled(fixedDelay = 6 * 60 * 60 * 1000) // cada 6h

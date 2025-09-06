@@ -1,3 +1,8 @@
 package es.agonzalez.multiagent.app.core.workflows.chat.models;
 
-public record ChatInput(String userId, String text, String intent) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ChatInput(String userId, 
+@NotBlank @Size(max=500)
+String text, String intent) {}

@@ -20,6 +20,7 @@ public class SummaryStore {
     
     @PostConstruct
     public void init() throws  IOException {
+        this.dataDir = dataDir == null ? "" : dataDir.replaceAll("[\\r\\n]", "").replaceAll("/+$","");
         baseDir = Paths.get(dataDir, "summary");
         Files.createDirectories(baseDir);    
     }

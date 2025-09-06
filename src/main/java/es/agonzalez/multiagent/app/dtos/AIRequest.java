@@ -3,11 +3,12 @@ package es.agonzalez.multiagent.app.dtos;
 import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class AIRequest {
     @NotBlank String userId;
-    @NotBlank String text;
-    String intent;
+    @NotBlank @Size(max=500) String text;
+    @NotBlank String intent;
     Map<String,Object> params;
     
     public String getUserId() {
