@@ -26,3 +26,4 @@ Thumbs.db
 # Docker
 volumes/
 *.pid
+.env
