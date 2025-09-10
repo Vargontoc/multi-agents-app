@@ -15,6 +15,9 @@ import es.agonzalez.multiagent.app.core.workflows.chat.steps.LoadMemoryStep;
 import es.agonzalez.multiagent.app.core.workflows.chat.steps.LoadSummaryStep;
 import es.agonzalez.multiagent.app.core.workflows.chat.steps.SaveResultStep;
 import es.agonzalez.multiagent.app.core.workflows.chat.steps.SummarizeIfNeededStep;
+import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
+import es.agonzalez.multiagent.app.core.workflows.recipe.steps.GenerateRecipeStep;
+import es.agonzalez.multiagent.app.core.workflows.recipe.steps.ReadRecipeStep;
 import es.agonzalez.multiagent.app.memory.MemoryService;
 import es.agonzalez.multiagent.app.memory.Summarizer;
 import es.agonzalez.multiagent.app.memory.SummaryStore;
@@ -33,6 +36,7 @@ public class WorkflowConfig {
     private Summarizer summarizer;
     @Autowired
     private ModelSelectors selectors;
+    
     @Bean
     public ChatWorkflow chatWorkflow() {
         return new ChatWorkflow(List.of(
@@ -41,6 +45,14 @@ public class WorkflowConfig {
             new GenerateStep(client, memory, registry, selectors),
             new SummarizeIfNeededStep(summary, summarizer),
             new SaveResultStep()
+        ));
+    }
+
+    @Bean
+    public RecipeWorkflow recipeWorkflow() {
+        return new RecipeWorkflow(List.of(
+            new GenerateRecipeStep(client, registry, selectors),
+            new ReadRecipeStep()
         ));
     }
 }

@@ -41,13 +41,13 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
             var messages = new ArrayList<Message>();
             
                         var sys = """
-                    Eres un bot de Twitch: amable, breve (máx 320 chars) y sin inventar.
+                    Eres un bot amable, breve (máx 320 chars) y sin inventar.
                     Si la pregunta no es clara pide SOLO una aclaración.
                     No repitas el enunciado del usuario
                     """;
             messages.add(Message.system(sys));
             if(!summary.isBlank()) {
-                messages.add(Message.system("Resument previo del usuario:\n" + summary));
+                messages.add(Message.system("Resumen previo del usuario:\n" + summary));
             }
             for(var line : last(history, 16)) {
                 var parts = line.split("\t", 3);
@@ -57,11 +57,13 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
                 messages.add(new Message(role.equals("assistant") ? "assistant" : "user", text));
             }
 
-            messages.add(Message.user(input.text()));
+            String inp = input.text().startsWith("!ai") ? input.text().replace("!ai", "") : input.text();
+            messages.add(Message.user(inp));
 
             String model = selector.pick("Agent.Chat", input.userId());
             Instant start = Instant.now();
-            LlmResponse resp = client.chat(model, messages, models.defaults());
+            var props = models.defaults();
+            LlmResponse resp = client.chat(model, messages, props, false);
             long latency = Duration.between(start, Instant.now()).toMillis();
 
             String answer = cap(resp.contet(), 320);

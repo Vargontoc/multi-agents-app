@@ -37,38 +37,64 @@ public class LlmClient {
         return http;
     }
 
-    public LlmResponse chat(String model, List<Message> messages, Map<String, Object> params) {
+    public LlmResponse chat(String model, List<Message> messages, Map<String, Object> params, boolean generative) {
+   
+        String call = generative ? "/api/generate" : "/api/chat";
+
+
         try {
             var payload = new HashMap<String, Object>();
             payload.put("model", model);
-            payload.put("messages", messages.stream().map(m -> Map.of(
-                "role", m.role(),
-                "content", m.content()
-            )).toList());
-            if(params != null) payload.putAll(params);
             payload.putIfAbsent("stream", false);
+            if(params != null) payload.putAll(params);
 
-            var req = HttpRequest.newBuilder().uri(URI.create(baseUrl + "/api/chat"))
+            if(generative)
+            {
+                payload.put("prompt", messages.get(0).content());            
+            }else 
+            {
+                payload.put("messages", messages.stream().map(m -> Map.of(
+                    "role", m.role(),
+                    "content", m.content()
+                )).toList());
+            }
+
+
+            
+            var req = HttpRequest.newBuilder()
+            .uri(URI.create(baseUrl + call))
             .timeout(Duration.ofMillis(timeoutMs))
             .header(HttpHeaders.CONTENT_TYPE, "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(payload))).build();
+            .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(payload)))
+            .build();
 
             var resp = getClient().send(req, HttpResponse.BodyHandlers.ofString());
             if(resp.statusCode() /100 != 2) {
                 throw new RuntimeException("LLM HTTP " + resp.statusCode() + ": " + resp.body());
             }
-
             Map<?, ?> json = om.readValue(resp.body(), Map.class);
-            Map<?, ?> message = (Map<?, ?>) json.get("message");
-            String content = message != null ? String.valueOf(message.get("content")) : "";
             int prompt = getNumber(json, "prompt_eval_count", -1).intValue();
             int completion = getNumber(json, "eval_count", -1).intValue();
-            return new LlmResponse(content, prompt, completion);
+
+
+            if(generative && json.containsKey("response") && json.get("response") instanceof  String r) {
+                return new LlmResponse(r, prompt, completion);
+            }else  {
+                Map<?, ?> message = (Map<?, ?>) json.get("message");
+                if(message != null && message.containsKey("content") && message.get("content") instanceof String c) {
+
+                    return new LlmResponse(c, prompt, completion);
+                }
+                return new LlmResponse("", prompt, completion);
+            }
+
 
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException("Error llamando al LLM: " + e.getMessage(), e);
         }
     }
+
+ 
 
     private Number getNumber(Map<?, ?> map, String prop, Number defaultValue) {
         if(map.containsKey(prop) && map.get(prop) instanceof Number n) {
@@ -81,7 +107,7 @@ public class LlmClient {
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name="llm", fallbackMethod="fallback")
     @io.github.resilience4j.timelimiter.annotation.TimeLimiter(name="llm")
     @org.springframework.scheduling.annotation.Async
-    public CompletableFuture<LlmResponse> chatAsync(String model, List<Message> messages, Map<String, Object> params) {return CompletableFuture.supplyAsync(() -> this.chatBlocking(model, messages, params)); }
-    private LlmResponse chatBlocking(String model, List<Message> messages, Map<String, Object> params){ return chat(model, messages, params); }
+    public CompletableFuture<LlmResponse> chatAsync(String model, List<Message> messages, Map<String, Object> params, boolean generative) {return CompletableFuture.supplyAsync(() -> this.chatBlocking(model, messages, params, generative)); }
+    private LlmResponse chatBlocking(String model, List<Message> messages, Map<String, Object> params, boolean generative){ return chat(model, messages, params, generative); }
     public CompletableFuture<LlmResponse> fallback(String model, List<Message> messages, Map<String, Object> params, Throwable t) { return CompletableFuture.completedFuture(LlmResponse.of("Ahora mismo estoy ocupado. Intentelo de nuevo más tarde")); } 
 }   
