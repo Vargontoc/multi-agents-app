@@ -1,5 +1,6 @@
 package es.agonzalez.multiagent.app.core;
 
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
@@ -19,9 +20,16 @@ public class IntentDetector {
         private static final Pattern MEMOFF = Pattern.compile("^!voice\\s+off\\b", Pattern.CASE_INSENSITIVE);
 
         private static final Pattern CHAT = Pattern.compile("^!ai\\b", Pattern.CASE_INSENSITIVE);
+        private static final Map<String, String> INTENTS = Map.of(
+          "chat","Agent.Chat",
+          "recipe_request","Agent.Recipe",
+          "memory_forget","Agent.Memory.Forget",
+          "memory_on", "Agent.Memory.On",
+          "memory_off","Agent.Memory.Off"
+        );
 
         public String detect(String text) {
-          if (text == null || text.isBlank()) return "";
+          if (text == null || text.isBlank()) return null;
 
           var t = text.trim();
           if (RECIPE.matcher(t).find()) return "recipe_request";
@@ -34,6 +42,17 @@ public class IntentDetector {
           if (MEMON.matcher(t).find()) return "memory_on";
           if (MEMOFF.matcher(t).find()) return "memory_off";
 
-          return ""; // por defecto
+          return null;
+        }
+
+        public String agent(String intent) 
+        {
+            if(INTENTS.containsKey(intent))
+              return INTENTS.get(intent);
+            return null;
+        }
+
+        public boolean isValidIntent(String intent) {
+          return intent == null ? false : INTENTS.containsKey(intent); 
         }
 }

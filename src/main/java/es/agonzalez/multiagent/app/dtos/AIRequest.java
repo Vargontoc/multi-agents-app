@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class AIRequest {
-    @NotBlank String userId;
+    String userId;
     @NotBlank @Size(max=500) String text;
-    @NotBlank String intent;
+    String intent;
     Map<String,Object> params;
     
     public String getUserId() {
