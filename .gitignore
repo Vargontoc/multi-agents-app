@@ -27,3 +27,6 @@ Thumbs.db
 volumes/
 *.pid
 .env
+
+data/**
+application-*.properties
