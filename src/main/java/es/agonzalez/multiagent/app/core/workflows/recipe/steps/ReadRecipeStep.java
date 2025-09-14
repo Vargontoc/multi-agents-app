@@ -30,7 +30,6 @@ public class ReadRecipeStep implements Step<RecipeRequest, RecipeResponse> {
             {   
                 try {
                     om.readTree(answer);
-                    //TODO: Add validations existing fileds
                     
                 }catch(JsonProcessingException e) {
                     return Optional.of(RecipeResponse.error("Mmm, parece que no he hecho bien mi trabajo"));

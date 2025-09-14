@@ -38,14 +38,22 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
             var history = (List<String>)context.getOrDefault("history", List.of());
             var summary = (String) context.getOrDefault("summary", "");
 
-            var messages = new ArrayList<Message>();
-            
-                        var sys = """
+            String sysPrompt = """
                     Eres un bot amable, breve (máx 320 chars) y sin inventar.
                     Si la pregunta no es clara pide SOLO una aclaración.
                     No repitas el enunciado del usuario
                     """;
-            messages.add(Message.system(sys));
+            if(input.username() != null && !input.username().isBlank()) {
+                sysPrompt = """
+                        Eres un Bot que se llama Botty, encargado de tener una conversacion lo mas natural posible con la siguiente persona %s, adaptate a su forma de hablar y en el idioma en que te hable. Frases cortas
+                        no mas de 300 320 caracteres. Si no le entiendes algo preguntale, 
+                        """.formatted(input.username());
+            }
+
+            var messages = new ArrayList<Message>();
+            
+                     
+            messages.add(Message.system(sysPrompt));
             if(!summary.isBlank()) {
                 messages.add(Message.system("Resumen previo del usuario:\n" + summary));
             }

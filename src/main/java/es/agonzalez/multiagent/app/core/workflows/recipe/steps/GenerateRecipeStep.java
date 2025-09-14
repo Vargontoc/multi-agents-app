@@ -40,7 +40,7 @@ public class GenerateRecipeStep implements  Step<RecipeRequest, RecipeResponse>
         
         boolean generative = false;
 
-        if(input.data() != null && !input.data().isEmpty()) 
+        if(input.data() != null && !input.data().isEmpty() && input.data().containsKey("ingredients")) 
         {
             generative = true;
             context.put(org.springframework.http.HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON.toString());
@@ -77,7 +77,7 @@ public class GenerateRecipeStep implements  Step<RecipeRequest, RecipeResponse>
         }
 
 
-        if(input.text() != null && !input.text().isBlank() && !props.containsKey("generative")) 
+        if(input.text() != null && !input.text().isBlank() && !generative) 
         {
             context.put(org.springframework.http.HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN.toString());
             messages.add(Message.system("""

@@ -81,7 +81,15 @@ public class WorkflowRunner {
     }
 
     private AIResponse getChatOperation(AIRequest request, String intent) {
-        ChatInput input = new ChatInput(request.getUserId(), request.getText(), intent);
+        String username = "";
+        if(request.getParams() != null &&
+         !request.getParams().isEmpty() 
+         && request.getParams().containsKey("username") 
+         && request.getParams().get("username") instanceof String us) {
+            username = us;
+        }   
+
+        ChatInput input = new ChatInput(request.getUserId(), username, request.getText(), intent);
         ChatResult output =  chatWorkflow.run(input);
         if(!"ok".equals(output.status()))   
             metrics.incErrors();
