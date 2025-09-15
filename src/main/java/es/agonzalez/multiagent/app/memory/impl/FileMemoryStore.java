@@ -17,11 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.DistributionSummary;
 
 import es.agonzalez.multiagent.app.memory.MemoryStore;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 
 @Component
@@ -74,7 +74,17 @@ public class FileMemoryStore  implements MemoryStore{
         ReentrantLock lock = lockFor(userId);
         lock.lock();
         try {
-            return Files.readAllLines(p, StandardCharsets.UTF_8);
+            int limit = Math.max(1, maxLines);
+            java.util.ArrayDeque<String> deque = new java.util.ArrayDeque<>(limit);
+            try (var stream = Files.lines(p, StandardCharsets.UTF_8)) {
+                stream.forEach(line -> {
+                    if (deque.size() == limit) {
+                        deque.pollFirst(); // descartamos la más antigua para mantener sólo las últimas
+                    }
+                    deque.addLast(line);
+                });
+            }
+            return java.util.List.copyOf(deque);
         } finally {
             lock.unlock();
         }

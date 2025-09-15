@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import es.agonzalez.multiagent.app.core.LlmClient;
 import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
@@ -18,7 +20,6 @@ import es.agonzalez.multiagent.app.core.workflows.chat.steps.SummarizeIfNeededSt
 import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.recipe.steps.GenerateRecipeStep;
 import es.agonzalez.multiagent.app.core.workflows.recipe.steps.ReadRecipeStep;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import es.agonzalez.multiagent.app.memory.MemoryService;
 import es.agonzalez.multiagent.app.memory.Summarizer;
 import es.agonzalez.multiagent.app.memory.SummaryStore;
