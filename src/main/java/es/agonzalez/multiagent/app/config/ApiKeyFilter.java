@@ -20,7 +20,8 @@ import jakarta.servlet.http.HttpServletResponse;
 public class ApiKeyFilter extends OncePerRequestFilter{
     @Value("${security.apikey}")
     private String key;
-    private final ObjectMapper om = new ObjectMapper();
+    private final ObjectMapper om;
+    public ApiKeyFilter(ObjectMapper om) { this.om = om; }
     
     @Override
     @SuppressWarnings("null")

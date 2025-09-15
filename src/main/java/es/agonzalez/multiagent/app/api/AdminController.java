@@ -67,6 +67,20 @@ public class AdminController {
         ));
     }
 
+    /**
+     * Endpoint de solo lectura para inspeccionar la configuración canary actual.
+     * Devuelve, por cada agente configurado, el modelo estable, el canario (si existe)
+     * y el porcentaje de tráfico dirigido al canario.
+     */
+    @GetMapping("/models/canary")
+    public ResponseEntity<Map<String, Object>> canaryConfig() {
+        var cfg = selector.getCanary();
+        return ResponseEntity.ok(Map.of(
+            "status", "ok",
+            "canary", cfg.porAgent()
+        ));
+    }
+
     @PostMapping("/models/switch")
     public ResponseEntity<Map<String, Object>> switchModel(@jakarta.validation.Valid @RequestBody SwitchModelRequest req) {
         String agent = req.agent();
@@ -74,13 +88,7 @@ public class AdminController {
         String canary = (req.canary() == null || req.canary().isBlank()) ? null : req.canary();
         int percent = req.percent();
 
-        if (canary == null && percent > 0) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "status", "error",
-                "error", "validation",
-                "message", "percent>0 requiere canary no nulo"
-            ));
-        }
+        // Validaciones de percent/canary ya aplicadas vía Bean Validation en SwitchModelRequest
 
         var current = selector.getCanary().porAgent();
         var newMap = new HashMap<>(current);

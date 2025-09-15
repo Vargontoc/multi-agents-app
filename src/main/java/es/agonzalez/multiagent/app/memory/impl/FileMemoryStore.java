@@ -17,6 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 
 import es.agonzalez.multiagent.app.memory.MemoryStore;
 import jakarta.annotation.PostConstruct;
@@ -32,12 +35,36 @@ public class FileMemoryStore  implements MemoryStore{
     // Locks por usuario para evitar condiciones de carrera en rotación y escritura
     private final ConcurrentHashMap<String, ReentrantLock> userLocks = new ConcurrentHashMap<>();
 
+    // Métricas
+    @Autowired(required = false)
+    private MeterRegistry meterRegistry;
+    private Counter truncationsCounter;
+    private Counter rotationsCounter;
+    private Counter appendsCounter;
+    private DistributionSummary lineLengthSummary;
+
     @PostConstruct
     public void init() throws  IOException {
         this.dataDir = props.getDatadir();
         this.maxLines = props.getMaxHistoryLines();
         basedir = Paths.get(dataDir, "history");
         Files.createDirectories(basedir);
+        if (meterRegistry != null && truncationsCounter == null) {
+            truncationsCounter = Counter.builder("memory.lines.truncated")
+                .description("Número de líneas truncadas por exceder max-line-length")
+                .register(meterRegistry);
+            rotationsCounter = Counter.builder("memory.history.rotations")
+                .description("Número de rotaciones de archivos de historial")
+                .register(meterRegistry);
+            appendsCounter = Counter.builder("memory.lines.appended")
+                .description("Número de líneas añadidas al historial")
+                .register(meterRegistry);
+            lineLengthSummary = DistributionSummary.builder("memory.line.length")
+                .baseUnit("chars")
+                .description("Distribución de longitudes de líneas (ya saneadas y posiblemente truncadas)")
+                .publishPercentileHistogram()
+                .register(meterRegistry);
+        }
     }
 
     @Override
@@ -62,6 +89,7 @@ public class FileMemoryStore  implements MemoryStore{
             String original = safe;
             safe = safe.substring(0, Math.max(0, maxLen - 20)) + "...[truncated]";
             log.debug("Truncado input largo userId={} role={} originalLength={} newLength={}", userId, role, original.length(), safe.length());
+            if (truncationsCounter != null) truncationsCounter.increment();
         }
         String line = "%s\t%s\t%s%n".formatted(Instant.now().toString(), role, safe);
         ReentrantLock lock = lockFor(userId);
@@ -69,6 +97,8 @@ public class FileMemoryStore  implements MemoryStore{
         try {
             Files.writeString(p, line, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            if (appendsCounter != null) appendsCounter.increment();
+            if (lineLengthSummary != null) lineLengthSummary.record(safe.length());
         } catch (IOException e) {
             log.warn("Fallo al escribir historial userId={}", userId, e);
             throw e;
@@ -110,6 +140,7 @@ public class FileMemoryStore  implements MemoryStore{
                         throw recreateEx;
                     }
                     log.debug("Rotado historial userId={} -> {} (lineas={})", userId, rotated.getFileName(), lines);
+                    if (rotationsCounter != null) rotationsCounter.increment();
                 }
             }
         } catch (IOException e) {

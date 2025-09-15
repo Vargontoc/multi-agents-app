@@ -25,11 +25,15 @@ import es.agonzalez.multiagent.app.core.models.dto.OllamaChatResponse;
 public class LlmClient {
     private String baseUrl;
     private int timeoutMs;
-    private final ObjectMapper om = new ObjectMapper();
+    private final ObjectMapper om;
     private HttpClient http;
 
     @Autowired
     private es.agonzalez.multiagent.app.config.AppProperties props;
+
+    public LlmClient(ObjectMapper om) {
+        this.om = om;
+    }
 
     private HttpClient getClient() {
         if(http == null){

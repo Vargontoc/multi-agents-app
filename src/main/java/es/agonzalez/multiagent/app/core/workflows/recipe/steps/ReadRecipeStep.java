@@ -16,7 +16,8 @@ import es.agonzalez.multiagent.app.core.workflows.recipe.models.RecipeResponse;
 
 @Component
 public class ReadRecipeStep implements Step<RecipeRequest, RecipeResponse> {
-    private final ObjectMapper om = new ObjectMapper();
+    private final ObjectMapper om;
+    public ReadRecipeStep(ObjectMapper om) { this.om = om; }
 
     @Override
     public Optional<RecipeResponse> apply(RecipeRequest input, Map<String, Object> context) {

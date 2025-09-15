@@ -18,6 +18,7 @@ import es.agonzalez.multiagent.app.core.workflows.chat.steps.SummarizeIfNeededSt
 import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.recipe.steps.GenerateRecipeStep;
 import es.agonzalez.multiagent.app.core.workflows.recipe.steps.ReadRecipeStep;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.agonzalez.multiagent.app.memory.MemoryService;
 import es.agonzalez.multiagent.app.memory.Summarizer;
 import es.agonzalez.multiagent.app.memory.SummaryStore;
@@ -49,10 +50,10 @@ public class WorkflowConfig {
     }
 
     @Bean
-    public RecipeWorkflow recipeWorkflow() {
+    public RecipeWorkflow recipeWorkflow(ObjectMapper om) {
         return new RecipeWorkflow(List.of(
             new GenerateRecipeStep(client, registry, selectors),
-            new ReadRecipeStep()
+            new ReadRecipeStep(om)
         ));
     }
 }

@@ -21,7 +21,8 @@ public class MemoryFlagsStore {
     @Value("${multiagent.datadir}")
     private String dataDir;
     private Path basedir;
-    private final ObjectMapper om = new ObjectMapper();
+    private final ObjectMapper om;
+    public MemoryFlagsStore(ObjectMapper om) { this.om = om; }
 
     @PostConstruct
     public void init() throws  IOException {
