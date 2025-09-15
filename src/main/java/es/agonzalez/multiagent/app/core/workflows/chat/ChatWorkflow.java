@@ -2,7 +2,10 @@ package es.agonzalez.multiagent.app.core.workflows.chat;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+
+import org.springframework.context.MessageSource;
 
 import es.agonzalez.multiagent.app.core.workflows.Step;
 import es.agonzalez.multiagent.app.core.workflows.Workflow;
@@ -12,9 +15,11 @@ import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatResult;
 public class ChatWorkflow implements Workflow<ChatInput, ChatResult> {
     
     private final List<Step<ChatInput,ChatResult>> steps;
+    private final MessageSource messages;
 
-    public ChatWorkflow(List<Step<ChatInput, ChatResult>> steps) {
+    public ChatWorkflow(List<Step<ChatInput, ChatResult>> steps, MessageSource messages) {
         this.steps = steps;
+        this.messages = messages;
     }
 
     @Override
@@ -27,7 +32,8 @@ public class ChatWorkflow implements Workflow<ChatInput, ChatResult> {
             }
         }
 
-        return ChatResult.error("Flujo terminó sin resultado");
+        var msg = messages.getMessage("workflow.chat.no_result", null, Locale.getDefault());
+        return ChatResult.error(msg);
     }
 
     

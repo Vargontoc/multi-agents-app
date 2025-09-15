@@ -3,6 +3,7 @@ package es.agonzalez.multiagent.app.config;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -40,21 +41,21 @@ public class WorkflowConfig {
     private ModelSelectors selectors;
     
     @Bean
-    public ChatWorkflow chatWorkflow() {
+    public ChatWorkflow chatWorkflow(MessageSource messageSource) {
         return new ChatWorkflow(List.of(
-            new LoadMemoryStep(memory),
+            new LoadMemoryStep(memory, messageSource),
             new LoadSummaryStep(summary),
             new GenerateStep(client, memory, registry, selectors),
             new SummarizeIfNeededStep(summary, summarizer),
             new SaveResultStep()
-        ));
+        ), messageSource);
     }
 
     @Bean
-    public RecipeWorkflow recipeWorkflow(ObjectMapper om) {
+    public RecipeWorkflow recipeWorkflow(ObjectMapper om, MessageSource messageSource) {
         return new RecipeWorkflow(List.of(
             new GenerateRecipeStep(client, registry, selectors),
             new ReadRecipeStep(om)
-        ));
+        ), messageSource);
     }
 }

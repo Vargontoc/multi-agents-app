@@ -2,7 +2,10 @@ package es.agonzalez.multiagent.app.core.workflows.recipe;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+
+import org.springframework.context.MessageSource;
 
 import es.agonzalez.multiagent.app.core.workflows.Step;
 import es.agonzalez.multiagent.app.core.workflows.Workflow;
@@ -12,9 +15,11 @@ import es.agonzalez.multiagent.app.core.workflows.recipe.models.RecipeResponse;
 public class RecipeWorkflow implements Workflow<RecipeRequest, RecipeResponse> {
 
         private final List<Step<RecipeRequest, RecipeResponse>> steps;
+        private final MessageSource messages;
 
-        public RecipeWorkflow(List<Step<RecipeRequest, RecipeResponse>> steps) {
+        public RecipeWorkflow(List<Step<RecipeRequest, RecipeResponse>> steps, MessageSource messages) {
             this.steps = steps;
+            this.messages = messages;
         }
 
 
@@ -27,6 +32,7 @@ public class RecipeWorkflow implements Workflow<RecipeRequest, RecipeResponse> {
                     return maybe.get();
                 }
             }
-            return  RecipeResponse.error("Flujo terminó sin resultado");
+            var msg = messages.getMessage("workflow.recipe.no_result", null, Locale.getDefault());
+            return  RecipeResponse.error(msg);
         }
 }
