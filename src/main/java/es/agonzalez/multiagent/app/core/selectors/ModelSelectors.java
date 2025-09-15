@@ -21,7 +21,7 @@ public class ModelSelectors {
 
     public String pick(String agentName, String userIdOrNull) {
         var cfg = canaryRef.get().porAgent().get(agentName);
-        if(cfg == null || cfg.percentage() <= 0 || cfg.canary() == null || cfg.canary().isBlank()) return registry.modelForÇ(agentName);
+    if(cfg == null || cfg.percentage() <= 0 || cfg.canary() == null || cfg.canary().isBlank()) return registry.modelFor(agentName);
 
         int bucket = (userIdOrNull == null || userIdOrNull.isBlank()) ?
             ThreadLocalRandom.current().nextInt(100) : Math.floorMod(userIdOrNull.hashCode(), 100);

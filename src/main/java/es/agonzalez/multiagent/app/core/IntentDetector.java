@@ -45,10 +45,9 @@ public class IntentDetector {
           return null;
         }
 
-        public String agent(String intent) 
-        {
-            if(INTENTS.containsKey(intent))
-              return INTENTS.get(intent);
+        public String agent(String intent) {
+            if (intent == null) return null;
+            if (INTENTS.containsKey(intent)) return INTENTS.get(intent);
             return null;
         }
 

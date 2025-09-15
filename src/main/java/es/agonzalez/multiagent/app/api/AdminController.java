@@ -8,6 +8,8 @@ import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -22,12 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.selectors.CanaryConfig;
 import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
+import es.agonzalez.multiagent.app.dtos.SwitchModelRequest;
 
 
 
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
+    private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
     @Value("${multiagent.llm.url}")
     private String uri;
@@ -48,7 +52,8 @@ public class AdminController {
                 "body", res.body()
             ));
         } catch (InterruptedException | IOException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            log.warn("Fallo health-check contra LLM endpoint={} error={}", uri, e.toString());
+            return ResponseEntity.badRequest().body(Map.of("status","error","error", e.getClass().getSimpleName(), "message", e.getMessage()));
         }
     }
     
@@ -63,11 +68,19 @@ public class AdminController {
     }
 
     @PostMapping("/models/switch")
-    public ResponseEntity<Map<String, Object>> getMethodName(@RequestBody Map<String, Object> body) {
-        String agent = String.valueOf(body.get("agent"));
-        String stable = String.valueOf(body.get("stable"));
-        String canary = String.valueOf(body.get("canary"));
-        int percent = Integer.parseInt(String.valueOf(body.getOrDefault("percent", 0)));
+    public ResponseEntity<Map<String, Object>> switchModel(@jakarta.validation.Valid @RequestBody SwitchModelRequest req) {
+        String agent = req.agent();
+        String stable = req.stable();
+        String canary = (req.canary() == null || req.canary().isBlank()) ? null : req.canary();
+        int percent = req.percent();
+
+        if (canary == null && percent > 0) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "error", "validation",
+                "message", "percent>0 requiere canary no nulo"
+            ));
+        }
 
         var current = selector.getCanary().porAgent();
         var newMap = new HashMap<>(current);
@@ -85,7 +98,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/models/canary")
-    public ResponseEntity<Map<String, Object>> clear(@RequestParam("agent") String agent) {
+    public ResponseEntity<Map<String, Object>> removeCanary(@RequestParam("agent") String agent) {
         var current = selector.getCanary().porAgent();
         var newMap = new HashMap<>(current);
 
@@ -93,7 +106,9 @@ public class AdminController {
         selector.setCanaryConfig(new CanaryConfig(newMap));
 
         return ResponseEntity.ok().body(Map.of(
-            "status", "ok", "agent", agent
+            "status", "ok",
+            "agent", agent,
+            "action", "canary-removed"
         ));
     }
 

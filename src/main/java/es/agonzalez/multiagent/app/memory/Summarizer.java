@@ -36,9 +36,9 @@ public class Summarizer {
                 No incluyas datos sensibles; máximo 400 caracteres.
                 """;
 
-        var resp = client.chat(registry.modelForÇ("Agent.Chat"), List.of(
-        Message.system(sys),    
-        Message.user(conversation)), registry.defaults(), false);
+        var resp = client.chat(registry.modelFor("Agent.Chat"), List.of(
+            Message.system(sys),    
+            Message.user(conversation)), registry.defaults(), false);
 
         var s = resp.contet() == null ? "" : resp.contet().strip();
         return s.length()    <= 500 ? s : s.substring(0,499) + "...";

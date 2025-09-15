@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import es.agonzalez.multiagent.app.core.workflows.WorkflowRunner;
 import es.agonzalez.multiagent.app.dtos.AIRequest;
 import es.agonzalez.multiagent.app.dtos.AIResponse;
+import jakarta.validation.Valid;
 
 
 @RestController
@@ -19,7 +20,7 @@ public class AIController {
     private WorkflowRunner runner;
 
     @PostMapping("/ai")
-    public ResponseEntity<AIResponse> chat(@RequestBody AIRequest req) {
+    public ResponseEntity<AIResponse> chat(@Valid @RequestBody AIRequest req) {
             return ResponseEntity.ok().body(runner.applyWorklow(req));
     }
     

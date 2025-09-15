@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
@@ -19,28 +19,35 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.agonzalez.multiagent.app.core.models.LlmResponse;
 import es.agonzalez.multiagent.app.core.models.Message;
+import es.agonzalez.multiagent.app.core.models.dto.OllamaChatResponse;
 
 @Component
 public class LlmClient {
-    @Value("${multiagent.llm.url}")
     private String baseUrl;
-    @Value("${multiagent.llm.timeout-ms}")
     private int timeoutMs;
     private final ObjectMapper om = new ObjectMapper();
     private HttpClient http;
 
+    @Autowired
+    private es.agonzalez.multiagent.app.config.AppProperties props;
+
     private HttpClient getClient() {
         if(http == null){
-            this.baseUrl = baseUrl == null ? "" : baseUrl.replaceAll("[\\r\\n]", "").replaceAll("/+$","");
+            this.baseUrl = props.getLlm().getUrl();
+            this.timeoutMs = (int) props.getLlm().getTimeoutMs();
+            this.baseUrl = baseUrl == null ? "" : baseUrl.replaceAll("[\\r\\n]", "").replaceAll("/+$(?!/)", "");
             http = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build();
         }
         return http;
     }
 
     public LlmResponse chat(String model, List<Message> messages, Map<String, Object> params, boolean generative) {
-   
         String call = generative ? "/api/generate" : "/api/chat";
-
+        // Normalizar para evitar NPE posteriores
+        List<Message> safeMessages = (messages == null) ? List.of() : messages;
+        if (generative && safeMessages.isEmpty()) {
+            return new LlmResponse("", -1, -1);
+        }
 
         try {
             var payload = new HashMap<String, Object>();
@@ -48,12 +55,10 @@ public class LlmClient {
             payload.putIfAbsent("stream", false);
             if(params != null) payload.putAll(params);
 
-            if(generative)
-            {
-                payload.put("prompt", messages.get(0).content());            
-            }else 
-            {
-                payload.put("messages", messages.stream().map(m -> Map.of(
+            if(generative) {
+                payload.put("prompt", safeMessages.get(0).content());            
+            } else {
+                payload.put("messages", safeMessages.stream().map(m -> Map.of(
                     "role", m.role(),
                     "content", m.content()
                 )).toList());
@@ -72,21 +77,11 @@ public class LlmClient {
             if(resp.statusCode() /100 != 2) {
                 throw new RuntimeException("LLM HTTP " + resp.statusCode() + ": " + resp.body());
             }
-            Map<?, ?> json = om.readValue(resp.body(), Map.class);
-            int prompt = getNumber(json, "prompt_eval_count", -1).intValue();
-            int completion = getNumber(json, "eval_count", -1).intValue();
-
-
-            if(generative && json.containsKey("response") && json.get("response") instanceof  String r) {
-                return new LlmResponse(r, prompt, completion);
-            }else  {
-                Map<?, ?> message = (Map<?, ?>) json.get("message");
-                if(message != null && message.containsKey("content") && message.get("content") instanceof String c) {
-
-                    return new LlmResponse(c, prompt, completion);
-                }
-                return new LlmResponse("", prompt, completion);
-            }
+            OllamaChatResponse json = om.readValue(resp.body(), OllamaChatResponse.class);
+            int prompt = json.promptCount();
+            int completion = json.completionCount();
+            String content = json.contentOrEmpty(generative);
+            return new LlmResponse(content, prompt, completion);
 
 
         } catch (IOException | InterruptedException e) {
@@ -96,12 +91,7 @@ public class LlmClient {
 
  
 
-    private Number getNumber(Map<?, ?> map, String prop, Number defaultValue) {
-        if(map.containsKey(prop) && map.get(prop) instanceof Number n) {
-            return n;
-        }
-        return defaultValue;
-    } 
+    // Eliminado getNumber auxiliar: ahora manejado por DTO tipado
 
     @io.github.resilience4j.retry.annotation.Retry(name = "llm")
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name="llm", fallbackMethod="fallback")
