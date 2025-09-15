@@ -30,12 +30,14 @@ public class CanaryReadOnlyEndpointTest {
 
     @Test
     void returnsConfiguredCanaryAfterSwitch() throws Exception {
-        String body = "{\n" +
-            "  \"agent\": \"agentX\",\n" +
-            "  \"stable\": \"llama3.2:3b\",\n" +
-            "  \"canary\": \"llama3.2:8b\",\n" +
-            "  \"percent\": 25\n" +
-            "}";
+                String body = """
+                        {
+                            \"agent\": \"agentX\",
+                            \"stable\": \"llama3.2:3b\",
+                            \"canary\": \"llama3.2:8b\",
+                            \"percent\": 25
+                        }
+                        """;
         mvc.perform(post("/admin/models/switch")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("X-API-Key", API_KEY)

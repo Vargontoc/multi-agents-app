@@ -18,15 +18,17 @@ public class ObjectMapperUnknownFieldsTest {
 
     @Test
     void ignoresUnknownFields() throws Exception {
-        String json = "{\n" +
-            "  \"model\": \"llama3\",\n" +
-            "  \"created_at\": \"2025-09-15T12:00:00Z\",\n" +
-            "  \"message\": { \"role\": \"assistant\", \"content\": \"hola\" },\n" +
-            "  \"prompt_eval_count\": 5,\n" +
-            "  \"eval_count\": 10,\n" +
-            "  \"extra_field\": 12345,\n" +
-            "  \"another_unused\": { \"inner\": true }\n" +
-            "}";
+                String json = """
+                        {
+                            \"model\": \"llama3\",
+                            \"created_at\": \"2025-09-15T12:00:00Z\",
+                            \"message\": { \"role\": \"assistant\", \"content\": \"hola\" },
+                            \"prompt_eval_count\": 5,
+                            \"eval_count\": 10,
+                            \"extra_field\": 12345,
+                            \"another_unused\": { \"inner\": true }
+                        }
+                        """;
 
         OllamaChatResponse resp = assertDoesNotThrow(() -> om.readValue(json, OllamaChatResponse.class));
         assertEquals(5, resp.promptCount());

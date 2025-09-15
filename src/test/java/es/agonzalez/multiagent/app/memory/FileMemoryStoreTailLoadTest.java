@@ -27,6 +27,7 @@ public class FileMemoryStoreTailLoadTest {
     private AppProperties props;
 
     @BeforeEach
+    @SuppressWarnings("unused") // Usado por el ciclo de vida de JUnit
     void setup() throws Exception {
         props = new AppProperties();
         props.setDatadir(tmp.toString());
@@ -46,7 +47,11 @@ public class FileMemoryStoreTailLoadTest {
     void loadReturnsOnlyTail() throws Exception {
         // Escribimos 200 líneas (> 50)
         IntStream.range(0, 200).forEach(i -> {
-            try { store.append("userTail", "user", "line-" + i); } catch (Exception e) { throw new RuntimeException(e); }
+            try {
+                store.append("userTail", "user", "line-" + i);
+            } catch (java.io.IOException e) { //noinspection CatchMayIgnoreException - se re-lanza envuelto
+                throw new RuntimeException(e); // Escalamos porque el test no puede continuar sin escribir
+            }
         });
         List<String> lines = store.load("userTail");
         assertEquals(50, lines.size(), "Debe devolver sólo las últimas 50");

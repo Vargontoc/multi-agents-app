@@ -23,6 +23,7 @@ class SwitchModelRequestValidationTest {
         private static final String API_KEY = "secret123"; // debe coincidir con security.apikey de test (default)
 
     @Nested
+    @SuppressWarnings("unused") // JUnit descubre esta clase anidada por reflexión
     class InvalidCases {
         @Test
         @DisplayName("percent>0 sin canary retorna 400")
@@ -30,11 +31,13 @@ class SwitchModelRequestValidationTest {
                 mockMvc.perform(post(URL)
                     .header("X-API-Key", API_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{" +
-                    "\"agent\":\"chat\"," +
-                    "\"stable\":\"llama3:instruct\"," +
-                    "\"percent\":30" +
-                "}"))
+                                .content("""
+                                        {
+                                            \"agent\": \"chat\",
+                                            \"stable\": \"llama3:instruct\",
+                                            \"percent\": 30
+                                        }
+                                        """))
                 .andExpect(status().isBadRequest());
         }
 
@@ -44,12 +47,14 @@ class SwitchModelRequestValidationTest {
                 mockMvc.perform(post(URL)
                     .header("X-API-Key", API_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{" +
-                    "\"agent\":\"chat\"," +
-                    "\"stable\":\"llama3:instruct\"," +
-                    "\"canary\":\"llama3:instruct\"," +
-                    "\"percent\":10" +
-                "}"))
+                                .content("""
+                                        {
+                                            \"agent\": \"chat\",
+                                            \"stable\": \"llama3:instruct\",
+                                            \"canary\": \"llama3:instruct\",
+                                            \"percent\": 10
+                                        }
+                                        """))
                 .andExpect(status().isBadRequest());
         }
 
@@ -59,12 +64,14 @@ class SwitchModelRequestValidationTest {
                 mockMvc.perform(post(URL)
                     .header("X-API-Key", API_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{" +
-                    "\"agent\":\"chat!\"," +
-                    "\"stable\":\"llama3:instruct\"," +
-                    "\"canary\":\"llama3:small\"," +
-                    "\"percent\":20" +
-                "}"))
+                                .content("""
+                                        {
+                                            \"agent\": \"chat!\",
+                                            \"stable\": \"llama3:instruct\",
+                                            \"canary\": \"llama3:small\",
+                                            \"percent\": 20
+                                        }
+                                        """))
                 .andExpect(status().isBadRequest());
         }
 
@@ -74,12 +81,14 @@ class SwitchModelRequestValidationTest {
                 mockMvc.perform(post(URL)
                     .header("X-API-Key", API_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{" +
-                    "\"agent\":\"chat\"," +
-                    "\"stable\":\"llama3:instruct\"," +
-                    "\"canary\":\"llama3:small\"," +
-                    "\"percent\":0" +
-                "}"))
+                                .content("""
+                                        {
+                                            \"agent\": \"chat\",
+                                            \"stable\": \"llama3:instruct\",
+                                            \"canary\": \"llama3:small\",
+                                            \"percent\": 0
+                                        }
+                                        """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ok"));
         }
@@ -91,12 +100,14 @@ class SwitchModelRequestValidationTest {
             mockMvc.perform(post(URL)
                 .header("X-API-Key", API_KEY)
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{" +
-                "\"agent\":\"search\"," +
-                "\"stable\":\"llama3:instruct\"," +
-                "\"canary\":\"llama3:small\"," +
-                "\"percent\":25" +
-            "}"))
+                        .content("""
+                                {
+                                    \"agent\": \"search\",
+                                    \"stable\": \"llama3:instruct\",
+                                    \"canary\": \"llama3:small\",
+                                    \"percent\": 25
+                                }
+                                """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("ok"));
     }

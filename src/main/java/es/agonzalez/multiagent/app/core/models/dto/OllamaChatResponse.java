@@ -17,6 +17,6 @@ public record OllamaChatResponse(
         if(message != null && message.content() != null) return message.content();
         return "";
     }
-    public int promptCount(){ return prompt_eval_count == null ? -1 : prompt_eval_count.intValue(); }
-    public int completionCount(){ return eval_count == null ? -1 : eval_count.intValue(); }
+    public int promptCount(){ return java.util.Objects.requireNonNullElse(prompt_eval_count, -1); }
+    public int completionCount(){ return java.util.Objects.requireNonNullElse(eval_count, -1); }
 }

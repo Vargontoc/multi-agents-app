@@ -22,6 +22,7 @@ class ApiKeyFilterSecurityTest {
     private static final String VALID_KEY = "secret123"; // Debe coincidir con security.apikey en test
 
     @Nested
+    @SuppressWarnings("unused") // Referenciado implícitamente por JUnit para agrupar tests
     class UnauthorizedCases {
         @Test
         @DisplayName("Sin cabecera X-API-Key devuelve 401 con body JSON y WWW-Authenticate")

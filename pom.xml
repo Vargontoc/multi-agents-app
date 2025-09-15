@@ -95,6 +95,13 @@
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
 
+    <!-- Processor para generar metadata de propiedades y evitar warnings 'unknown property' en IDE -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <!-- OpenAPI / Swagger UI -->
     <dependency>
       <groupId>org.springdoc</groupId>

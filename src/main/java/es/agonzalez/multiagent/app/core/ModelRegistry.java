@@ -64,8 +64,8 @@ public class ModelRegistry {
     }
 
     @PostConstruct
-    @SuppressWarnings("unchecked")
-    void initOverrides() {
+    @SuppressWarnings({"unchecked"}) // llamado por el contenedor Spring
+    public void initOverrides() {
         try {
             Path modelsDir = Paths.get(props.getDatadir(), "models");
             Files.createDirectories(modelsDir);
