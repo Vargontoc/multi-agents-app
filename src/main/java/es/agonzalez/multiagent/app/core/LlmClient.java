@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import es.agonzalez.multiagent.app.core.models.LlmResponse;
 import es.agonzalez.multiagent.app.core.models.Message;
 import es.agonzalez.multiagent.app.core.models.dto.OllamaChatResponse;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class LlmClient {
@@ -34,8 +35,9 @@ public class LlmClient {
     public LlmClient(ObjectMapper om) {
         this.om = om;
     }
-
-    private HttpClient getClient() {
+    
+    @PostConstruct
+    public HttpClient getClient() {
         if(http == null){
             this.baseUrl = props.getLlm().getUrl();
             this.timeoutMs = (int) props.getLlm().getTimeoutMs();
