@@ -25,11 +25,14 @@ import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.selectors.CanaryConfig;
 import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
 import es.agonzalez.multiagent.app.dtos.SwitchModelRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 
 
 @RestController
 @RequestMapping("/admin")
+@Tag(name = "Administración", description = "Gestión de modelos y health checks")
 public class AdminController {
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
@@ -42,6 +45,7 @@ public class AdminController {
     private ModelSelectors selector;
 
     @GetMapping("/health")
+    @Operation(summary = "Health del backend LLM", description = "Verifica acceso al endpoint remoto de modelos.")
     public ResponseEntity<Map<String, Object>> checkHealth() {
         try {
             var url = URI.create(uri + "/api/tags");
@@ -59,6 +63,7 @@ public class AdminController {
     
 
     @GetMapping("/models")
+    @Operation(summary = "Lista modelos conocidos", description = "Devuelve mapeo de agentes a modelos y overrides actuales.")
     public ResponseEntity<Map<String, Object>> listModels() {
         return ResponseEntity.ok().body(Map.of(
             "agents", registry.currentAgents(),
@@ -73,6 +78,7 @@ public class AdminController {
      * y el porcentaje de tráfico dirigido al canario.
      */
     @GetMapping("/models/canary")
+    @Operation(summary = "Config canary actual", description = "Devuelve configuración canary por agente (stable, canary, percentage).")
     public ResponseEntity<Map<String, Object>> canaryConfig() {
         var cfg = selector.getCanary();
         return ResponseEntity.ok(Map.of(
@@ -82,6 +88,7 @@ public class AdminController {
     }
 
     @PostMapping("/models/switch")
+    @Operation(summary = "Actualiza configuración de un agente", description = "Define stable, canary y porcentaje para dirigir tráfico.")
     public ResponseEntity<Map<String, Object>> switchModel(@jakarta.validation.Valid @RequestBody SwitchModelRequest req) {
         String agent = req.agent();
         String stable = req.stable();
@@ -106,6 +113,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/models/canary")
+    @Operation(summary = "Elimina canary de un agente", description = "Quita configuración canary dejando sólo el modelo estable.")
     public ResponseEntity<Map<String, Object>> removeCanary(@RequestParam("agent") String agent) {
         var current = selector.getCanary().porAgent();
         var newMap = new HashMap<>(current);

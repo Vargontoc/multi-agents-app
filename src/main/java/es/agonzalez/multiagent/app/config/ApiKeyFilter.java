@@ -27,7 +27,13 @@ public class ApiKeyFilter extends OncePerRequestFilter{
     @SuppressWarnings("null")
     protected void doFilterInternal( HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        
+        String path = request.getRequestURI();
+        // Excepciones públicas: documentación OpenAPI y recursos de Swagger UI
+        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui") || path.equals("/swagger-ui.html")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String provided = request.getHeader("X-API-Key");
         if(provided == null || !provided.equals(key)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
