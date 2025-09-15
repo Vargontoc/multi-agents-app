@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class AIRequest {
+    @NotBlank(message="userId no puede estar vacío")
     @Size(max=64, message="userId demasiado largo (max 64)")
     String userId;
     @NotBlank(message="text no puede estar vacío") @Size(max=500, message="text excede 500 chars") String text;

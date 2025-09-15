@@ -225,8 +225,12 @@ public class FileMemoryStore  implements MemoryStore{
     }
 
     private static String sanitizeUserId(String s) {
-        if (s == null || s.isBlank()) return "unknown";
-        return s.replaceAll("[^a-zA-Z0-9._-]", "_");
+        // Improvement 10: we now expect controllers/DTO validation to enforce non-blank userId.
+        // Null safety kept (maps to "unknown"), but blank should not reach here after validation.
+        if (s == null) return "unknown"; // legacy safeguard
+        String trimmed = s.trim();
+        if (trimmed.isEmpty()) return "unknown"; // fallback kept to avoid NPEs if validation missed some path
+        return trimmed.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 
     private static String sanitizeSingleLine(String s) {

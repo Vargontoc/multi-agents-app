@@ -45,8 +45,27 @@ public class AIControllerValidationTest {
     }
 
     @Test
+    void rejectsBlankUserId() throws Exception {
+        String body = "{\"userId\":\"   \", \"text\":\"hola\"}";
+        mockMvc.perform(post("/api/v1/ai").header("X-API-Key", "test-key")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsMissingUserIdWhenRequired() throws Exception {
+        // userId omitted should also fail because @NotBlank requires presence (null treated as violation)
+        String body = "{\"text\":\"hola\"}";
+        mockMvc.perform(post("/api/v1/ai").header("X-API-Key", "test-key")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void validRequestWithoutCommandReturnsErrorStatusPayload() throws Exception {
-        String body = "{\"text\":\"hola\"}"; // no command => intent null => status error
+        String body = "{\"userId\":\"user1\", \"text\":\"hola\"}"; // no intent => status error
         mockMvc.perform(post("/api/v1/ai").header("X-API-Key", "test-key")
             .contentType(MediaType.APPLICATION_JSON)
             .content(body))
