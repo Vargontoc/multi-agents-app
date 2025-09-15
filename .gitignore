@@ -32,3 +32,4 @@ data/**
 application-*.properties
 .vscode
 data
+/src/main/resources/META-INF
