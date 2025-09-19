@@ -1,14 +1,16 @@
 package es.agonzalez.multiagent.app.core.workflows;
 
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import es.agonzalez.multiagent.app.config.MetricsService;
 import es.agonzalez.multiagent.app.core.IntentDetector;
+import es.agonzalez.multiagent.app.core.llm.exceptions.LlmException;
+import es.agonzalez.multiagent.app.core.mappers.ResponseMapper;
 import es.agonzalez.multiagent.app.core.workflows.chat.ChatWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatInput;
 import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatResult;
@@ -30,22 +32,38 @@ public class WorkflowRunner {
     private ChatWorkflow chatWorkflow;
     @Autowired
     private RecipeWorkflow recipeWorkflow;
-    public AIResponse applyWorklow(AIRequest request) 
+    @Autowired
+    private ResponseMapper responseMapper;
+    public AIResponse applyWorkflow(AIRequest request) 
     {
         metrics.incMessages();
         String intent = getIntent(request);
+        if(request.getUserId() != null) {
+            MDC.put("userId", request.getUserId());
+        }
+        if(intent != null) {
+            MDC.put("intent", intent);
+        }
     
         if(intent == null)
         {
             LOGGER.error("Intent not valid in request");
-            return new AIResponse("error", getAgent(intent), "Request not valid", Map.of());
+            return AIResponse.error(getAgent(intent), "Request not valid", "invalid_intent");
         }
         try {
             return run(request, intent);
+        } catch (LlmException le) {
+            metrics.incErrors();
+            LOGGER.error("LLM operation failed: {}", le.reason(), le);
+            return AIResponse.error(getAgent(intent), le.getMessage(), le.reason());
         } catch (Exception e) {
             metrics.incErrors();
             LOGGER.error("Operation failed", e);
-            return new AIResponse("error", getAgent(intent), e.getMessage(), Map.of());
+            return AIResponse.error(getAgent(intent), e.getMessage(), "unknown");
+        } finally {
+            // model se añade en GenerateStep y se elimina por filtro al final del request
+            MDC.remove("intent");
+            MDC.remove("userId");
         }
     }
 
@@ -59,7 +77,7 @@ public class WorkflowRunner {
                 return getRecipeOperation(request, intent);
             }
             default -> {
-                return new AIResponse("error", getAgent(intent), "Operation not found", Map.of());
+                return AIResponse.error(getAgent(intent), "Operation not found", "unknown_operation");
             }
         }
     }
@@ -74,29 +92,24 @@ public class WorkflowRunner {
             metrics.incErrors();
         }
 
-        return new AIResponse(out.status(), getAgent(intent), out.message(), Map.of(
-            "userId", "", "intent", intent, "meta", out.data()
-        ));
-
+        return responseMapper.mapRecipeResult(out, request, intent, getAgent(intent));
     }
 
     private AIResponse getChatOperation(AIRequest request, String intent) {
         String username = "";
         if(request.getParams() != null &&
-         !request.getParams().isEmpty() 
-         && request.getParams().containsKey("username") 
+         !request.getParams().isEmpty()
+         && request.getParams().containsKey("username")
          && request.getParams().get("username") instanceof String us) {
             username = us;
-        }   
+        }
 
         ChatInput input = new ChatInput(request.getUserId(), username, request.getText(), intent);
         ChatResult output =  chatWorkflow.run(input);
-        if(!"ok".equals(output.status()))   
+        if(!"ok".equals(output.status()))
             metrics.incErrors();
-        return new AIResponse(
-                output.status(), getAgent(intent), output.message(), Map.of(
-                        "userId", request.getUserId(), "intent", intent, "meta", output.data()
-                ));
+
+        return responseMapper.mapChatResult(output, request, intent, getAgent(intent));
     }
 
     private String getIntent(AIRequest r) {

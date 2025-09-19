@@ -25,7 +25,7 @@ public class AIController {
     @PostMapping("/ai")
     @Operation(summary = "Ejecuta un workflow IA", description = "Procesa un input del usuario y devuelve respuesta del agente / modelo.")
     public ResponseEntity<AIResponse> chat(@Valid @RequestBody AIRequest req) {
-        return ResponseEntity.ok().body(runner.applyWorklow(req));
+    return ResponseEntity.ok().body(runner.applyWorkflow(req));
     }
     
 }

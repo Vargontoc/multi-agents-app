@@ -1,11 +1,12 @@
 package es.agonzalez.multiagent.app.config;
 
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,8 +19,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class ApiKeyFilter extends OncePerRequestFilter{
-    @Value("${security.apikey}")
-    private String key;
+    @Autowired
+    private SecurityProperties securityProperties;
     private final ObjectMapper om;
     public ApiKeyFilter(ObjectMapper om) { this.om = om; }
     
@@ -35,7 +36,7 @@ public class ApiKeyFilter extends OncePerRequestFilter{
         }
 
         String provided = request.getHeader("X-API-Key");
-        if(provided == null || !provided.equals(key)) {
+        if(provided == null || !isValidApiKey(provided, securityProperties.getApikey())) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             // Indicamos esquema genérico de API key (custom) para clientes automatizados
@@ -51,6 +52,21 @@ public class ApiKeyFilter extends OncePerRequestFilter{
         }
 
         filterChain.doFilter(request, response); // Sólo continúa si autenticado
+    }
+
+    /**
+     * Comparación constant-time de API keys para prevenir timing attacks.
+     * Usa MessageDigest.isEqual() que implementa comparación segura.
+     */
+    private boolean isValidApiKey(String provided, String expected) {
+        if (provided == null || expected == null) {
+            return false;
+        }
+        // Convertir a bytes UTF-8 para comparación constant-time
+        byte[] providedBytes = provided.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] expectedBytes = expected.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        return MessageDigest.isEqual(providedBytes, expectedBytes);
     }
 
 }

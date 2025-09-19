@@ -19,7 +19,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
+import io.github.bucket4j.ConsumptionProbe;
 import io.github.bucket4j.Refill;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,16 +41,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimitProperties props;
     private final ObjectMapper om;
+    private final MeterRegistry meterRegistry;
+    private final Counter rateLimitedCounter;
+    private final Map<String, Integer> remainingTokensMap = new ConcurrentHashMap<>();
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private volatile Bandwidth currentBandwidth;
     private Set<String> excluded;
 
-    public RateLimitingFilter(RateLimitProperties props, ObjectMapper om) {
+    public RateLimitingFilter(RateLimitProperties props, ObjectMapper om, MeterRegistry meterRegistry) {
         this.props = props;
         this.om = om;
+        this.meterRegistry = meterRegistry;
         rebuildBandwidth();
         rebuildExclusions();
+        this.rateLimitedCounter = Counter.builder("rate_limit_rejections_total")
+            .description("Total de peticiones rechazadas por rate limiting")
+            .register(meterRegistry);
     }
 
     private void rebuildExclusions() {
@@ -74,7 +85,22 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private Bucket resolveBucket(String key) {
-        return buckets.computeIfAbsent(key, k -> Bucket.builder().addLimit(currentBandwidth).build());
+        return buckets.computeIfAbsent(key, k -> {
+            Bucket b = Bucket.builder().addLimit(currentBandwidth).build();
+            // Registrar gauge para este key (remaining tokens)
+            Gauge.builder("rate_limit_remaining_tokens", remainingTokensMap, m -> m.getOrDefault(k, 0))
+                .description("Tokens restantes en la ventana actual para la API key")
+                .tag("key", anonymizeKey(k))
+                .register(meterRegistry);
+            return b;
+        });
+    }
+
+    private String anonymizeKey(String key) {
+        if (key == null) return "unknown";
+        int h = Math.abs(key.hashCode());
+        String hex = Integer.toHexString(h);
+        return hex.length() > 6 ? hex.substring(0,6) : hex;
     }
 
     @Override
@@ -92,11 +118,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             apiKey = request.getRemoteAddr();
         }
         Bucket bucket = resolveBucket(apiKey);
-        if (bucket.tryConsume(1)) {
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        if (probe.isConsumed()) {
+            remainingTokensMap.put(apiKey, (int) probe.getRemainingTokens());
             filterChain.doFilter(request, response);
             return;
         }
         // limite excedido
+        rateLimitedCounter.increment();
+        remainingTokensMap.put(apiKey, 0);
         response.setStatus(429);
         response.setContentType("application/json");
         Map<String,Object> body = Map.of(

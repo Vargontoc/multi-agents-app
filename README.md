@@ -8,6 +8,7 @@ Microservicio **Spring Boot** multi-agente con **workflows**, **memoria por usua
 - Canary de modelos (A/B) y hot switch
 - Métricas (Prometheus/Micrometer), health, logs JSON
 - API key y fallbacks resilientes
+ - Rate limiting por API key (Bucket4j)
 
 ## 🧩 Arquitectura (resumen)
 ![diagram](docs/architecture.md)
@@ -32,6 +33,21 @@ curl -s http://localhost:8080/actuator/health
 | OLLAMA_BASE_URL | Endpoint Ollama | http://host.docker.internal:11434 |
 | LLM_TIMEOUT_MS | Timeout llamadas LLM (ms) | 5000 |
 | ENV_APIKEY | API key requerida en header `x-api-key` | secret123 |
+| RATELIMIT_ENABLED | Activa/desactiva rate limiting | true |
+| RATELIMIT_CAPACITY | Tokens máximos por ventana | 100 |
+| RATELIMIT_REFILL_TOKENS | Tokens añadidos en cada refill | 100 |
+| RATELIMIT_REFILL_PERIOD | Periodo de refill (e.g. 60s, 5m) | 60s |
+
+### Rate limiting
+Se aplica un bucket por API key (cabecera `X-API-Key`). Defaults configurables vía properties:
+```
+ratelimit.enabled=true
+ratelimit.capacity=100
+ratelimit.refill.tokens=100
+ratelimit.refill.period=60s
+ratelimit.exclude-paths=/actuator/health,/v3/api-docs,/swagger-ui,/swagger-ui.html
+```
+Si se excede la cuota el servicio responde `429` con JSON `{ "error": "rate_limited" }`.
 
 ### Uso en Windows
 Los scripts de `scripts/*.sh` requieren WSL, Git Bash o similar. Alternativas:

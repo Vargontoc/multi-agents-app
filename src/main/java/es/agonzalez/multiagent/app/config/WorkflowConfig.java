@@ -41,11 +41,11 @@ public class WorkflowConfig {
     private ModelSelectors selectors;
     
     @Bean
-    public ChatWorkflow chatWorkflow(MessageSource messageSource) {
+    public ChatWorkflow chatWorkflow(MessageSource messageSource, MetricsService metrics) {
         return new ChatWorkflow(List.of(
             new LoadMemoryStep(memory, messageSource),
             new LoadSummaryStep(summary),
-            new GenerateStep(client, memory, registry, selectors),
+            new GenerateStep(client, memory, registry, selectors, metrics),
             new SummarizeIfNeededStep(summary, summarizer),
             new SaveResultStep()
         ), messageSource);

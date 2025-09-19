@@ -1,7 +1,6 @@
 package es.agonzalez.multiagent.app.core;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,9 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.annotation.PostConstruct;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +20,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 @Component
 public class ModelRegistry {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ModelRegistry.class);
 
     /** YAML parser para el fichero de modelos */
     private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
@@ -43,10 +44,18 @@ public class ModelRegistry {
 
     private Path overridesFile;
 
-    public ModelRegistry(@Value("${multiagent.modelconfig}") Resource config) {
-        load(config);
+    public ModelRegistry() {
+        // La carga se hace en @PostConstruct cuando AppProperties está disponible
     }
 
+    @PostConstruct
+    public void initialize() {
+        // Cargar configuración de modelos
+        Resource config = new ClassPathResource(props.getModelconfig());
+        load(config);
+        // Inicializar overrides
+        initOverrides();
+    }
 
     @SuppressWarnings("unchecked")
     private void load(Resource config) {
@@ -59,20 +68,18 @@ public class ModelRegistry {
             this.defaults = Collections.unmodifiableMap(new HashMap<>(defs));
             this.overridesView = Collections.unmodifiableMap(new HashMap<>()); // vacío inicial
         } catch (IOException e) {
-            throw new IllegalStateException("No pude cargar models.yml: " +  e.getMessage(), e);
+            throw new IllegalStateException("No pude cargar archivo de modelos: " +  e.getMessage(), e);
         }
     }
 
-    @PostConstruct
-    @SuppressWarnings({"unchecked"}) // llamado por el contenedor Spring
-    public void initOverrides() {
+    private void initOverrides() {
         try {
             Path modelsDir = Paths.get(props.getDatadir(), "models");
             Files.createDirectories(modelsDir);
             overridesFile = modelsDir.resolve("overrides.json");
             if (Files.exists(overridesFile)) {
-                // Cargar overrides persistidos y aplicarlos sobre snapshot inicial
-                Map<String,Object> persisted = yaml.readValue(Files.readString(overridesFile, StandardCharsets.UTF_8), Map.class);
+                // Cargar overrides persistidos (ahora formato checksum + JSON, con fallback legacy)
+                Map<String,Object> persisted = es.agonzalez.multiagent.app.core.persistence.AtomicOverridesStore.readValidated(overridesFile);
                 if (!persisted.isEmpty()) {
                     overridesMutable.putAll(persisted);
                     overridesView = Collections.unmodifiableMap(new HashMap<>(overridesMutable));
@@ -82,8 +89,8 @@ public class ModelRegistry {
                 }
             }
         } catch (IOException ex) {
-            // No detener la aplicación por fallo de carga de overrides; loggear y continuar
-            System.err.println("[ModelRegistry] No se pudieron cargar overrides persistidos: " + ex.getMessage());
+            // No detener la aplicación por fallo de carga de overrides; log estructurado
+            log.warn("No se pudieron cargar overrides persistidos: {}", ex.getMessage());
         }
     }
 
@@ -116,10 +123,9 @@ public class ModelRegistry {
     private void persistOverrides() {
         if (overridesFile == null) return; // aún no inicializado
         try {
-            String json = yaml.writeValueAsString(overridesMutable);
-            Files.writeString(overridesFile, json, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            System.err.println("[ModelRegistry] Fallo al persistir overrides: " + e.getMessage());
+            es.agonzalez.multiagent.app.core.persistence.AtomicOverridesStore.writeAtomic(overridesFile, overridesMutable);
+        } catch (Exception e) {
+            log.error("Fallo al persistir overrides atómicos: {}", e.getMessage());
         }
     }
 }

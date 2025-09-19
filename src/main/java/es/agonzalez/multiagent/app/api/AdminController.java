@@ -11,7 +11,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import es.agonzalez.multiagent.app.audit.ModelAuditService;
+import es.agonzalez.multiagent.app.config.AppProperties;
 import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.selectors.CanaryConfig;
 import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
@@ -36,19 +37,21 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class AdminController {
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
-    @Value("${multiagent.llm.url}")
-    private String uri;
-
+    @Autowired
+    private AppProperties appProperties;
     @Autowired
     private ModelRegistry registry;
     @Autowired
     private ModelSelectors selector;
+    @Autowired
+    private ModelAuditService audit;
 
     @GetMapping("/health")
     @Operation(summary = "Health del backend LLM", description = "Verifica acceso al endpoint remoto de modelos.")
     public ResponseEntity<Map<String, Object>> checkHealth() {
         try {
-            var url = URI.create(uri + "/api/tags");
+            String llmUrl = appProperties.getLlm().getUrl();
+            var url = URI.create(llmUrl + "/api/tags");
             var client = HttpClient.newHttpClient();
             var res = client.send(HttpRequest.newBuilder(url).GET().build(), HttpResponse.BodyHandlers.ofString());
             return ResponseEntity.ok().body(Map.of(
@@ -56,7 +59,7 @@ public class AdminController {
                 "body", res.body()
             ));
         } catch (InterruptedException | IOException e) {
-            log.warn("Fallo health-check contra LLM endpoint={} error={}", uri, e.toString());
+            log.warn("Fallo health-check contra LLM endpoint={} error={}", appProperties.getLlm().getUrl(), e.toString());
             return ResponseEntity.badRequest().body(Map.of("status","error","error", e.getClass().getSimpleName(), "message", e.getMessage()));
         }
     }
@@ -89,43 +92,83 @@ public class AdminController {
 
     @PostMapping("/models/switch")
     @Operation(summary = "Actualiza configuración de un agente", description = "Define stable, canary y porcentaje para dirigir tráfico.")
-    public ResponseEntity<Map<String, Object>> switchModel(@jakarta.validation.Valid @RequestBody SwitchModelRequest req) {
+    public ResponseEntity<Map<String, Object>> switchModel(@jakarta.validation.Valid @RequestBody SwitchModelRequest req, jakarta.servlet.http.HttpServletRequest servletRequest) {
         String agent = req.agent();
         String stable = req.stable();
         String canary = (req.canary() == null || req.canary().isBlank()) ? null : req.canary();
         int percent = req.percent();
 
         // Validaciones de percent/canary ya aplicadas vía Bean Validation en SwitchModelRequest
-
-        var current = selector.getCanary().porAgent();
+        var currentCfg = selector.getCanary();
+        var current = currentCfg.porAgent();
+        var previous = current.get(agent);
         var newMap = new HashMap<>(current);
-
-        newMap.put(agent, new CanaryConfig.Entry(stable, canary, percent));
+        var updatedEntry = new CanaryConfig.Entry(stable, canary, percent);
+        newMap.put(agent, updatedEntry);
         selector.setCanaryConfig(new CanaryConfig(newMap));
 
-        return ResponseEntity.ok().body(Map.of(
-            "status", "ok",
-            "agent", agent,
-            "stable", stable,
-            "canary", canary,
-            "percent", percent
-        ));
+        // Auditoría
+        String requestId = org.slf4j.MDC.get("requestId");
+        String apiKeyHash = org.slf4j.MDC.get("apiKeyHash");
+        String remoteIp = servletRequest.getRemoteAddr();
+        String adminUser = servletRequest.getHeader(ModelAuditService.HEADER_ADMIN_USER); // opcional
+        audit.auditModelSwitch(agent, previous, updatedEntry, requestId, apiKeyHash, remoteIp, adminUser);
+    // Usar HashMap porque Map.of no admite valores null (canary puede ser null cuando se desactiva)
+    var resp = new HashMap<String,Object>();
+    resp.put("status", "ok");
+    resp.put("agent", agent);
+    resp.put("stable", stable);
+    resp.put("canary", canary); // puede ser null y Jackson lo serializa como null
+    resp.put("percent", percent);
+    return ResponseEntity.ok().body(resp);
     }
 
     @DeleteMapping("/models/canary")
     @Operation(summary = "Elimina canary de un agente", description = "Quita configuración canary dejando sólo el modelo estable.")
-    public ResponseEntity<Map<String, Object>> removeCanary(@RequestParam("agent") String agent) {
-        var current = selector.getCanary().porAgent();
+    public ResponseEntity<Map<String, Object>> removeCanary(@RequestParam("agent") String agent, jakarta.servlet.http.HttpServletRequest servletRequest) {
+        var currentCfg = selector.getCanary();
+        var current = currentCfg.porAgent();
+        var previous = current.get(agent);
         var newMap = new HashMap<>(current);
 
-        newMap.remove(agent);
+        newMap.remove(agent); // eliminación completa del entry para el agente
         selector.setCanaryConfig(new CanaryConfig(newMap));
 
+        // Auditoría (solo si había algo que eliminar)
+        if (previous != null) {
+            String requestId = org.slf4j.MDC.get("requestId");
+            String apiKeyHash = org.slf4j.MDC.get("apiKeyHash");
+            String remoteIp = servletRequest.getRemoteAddr();
+            String adminUser = servletRequest.getHeader(ModelAuditService.HEADER_ADMIN_USER);
+            audit.auditCanaryRemoval(agent, previous, requestId, apiKeyHash, remoteIp, adminUser);
+        }
+
         return ResponseEntity.ok().body(Map.of(
-            "status", "ok",
-            "agent", agent,
-            "action", "canary-removed"
-        ));
+                "status", "ok",
+                "agent", agent,
+                "action", "canary-removed"
+            ));
+    }
+
+    @GetMapping("/model-audit")
+    @Operation(summary = "Eventos de auditoría filtrables", description = "Devuelve los eventos más recientes de auditoría (model_switch / canary_remove) con filtros opcionales. Parámetros: limit (1-500), agent (exact match) y since (ISO-8601 instant, ej: 2025-09-17T19:00:00Z). Si since es inválido se ignora (fail-open).")
+    public ResponseEntity<Map<String,Object>> tailAudit(
+            @RequestParam(name = "limit", defaultValue = "50") int limit,
+            @RequestParam(name = "agent", required = false) String agent,
+            @RequestParam(name = "since", required = false) String since
+        ) {
+        if (limit < 1) limit = 1;
+        if (limit > 500) limit = 500; // cota de seguridad
+        var events = (agent == null && since == null) ? audit.tail(limit) : audit.tailFiltered(limit, agent, since);
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "count", events.size(),
+                "events", events,
+                "appliedFilters", Map.of(
+                    "agent", agent == null ? "" : agent,
+                    "since", since == null ? "" : since
+                )
+            ));
     }
 
     

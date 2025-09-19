@@ -101,7 +101,7 @@ public class GenerateRecipeStep implements  Step<RecipeRequest, RecipeResponse>
 
         LlmResponse resp = client.chat(model, messages, props, generative);
         long latency = Duration.between(start, Instant.now()).toMillis();
-        String answer = resp.contet();
+        String answer = resp.content();
 
         context.put("latencyMs", latency);
         context.put("model", model);

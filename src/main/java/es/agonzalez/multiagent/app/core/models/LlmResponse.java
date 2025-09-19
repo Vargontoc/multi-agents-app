@@ -1,7 +1,7 @@
 package es.agonzalez.multiagent.app.core.models;
 
 public record LlmResponse(
-    String contet,
+    String content,
     int promptToken,
     int completionToken
 ) {

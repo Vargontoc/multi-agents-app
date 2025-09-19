@@ -16,22 +16,22 @@ import jakarta.validation.constraints.Pattern;
  * - Si canary presente y stable==canary se rechaza (no tiene sentido canary idéntico al estable cuando percent>0).
  */
 public record SwitchModelRequest(
-    @NotBlank(message = "agent es obligatorio")
-    @Pattern(regexp = "^[a-zA-Z0-9_-]{2,40}$", message = "agent formato inválido")
+    @NotBlank(message = "{validation.agent.notBlank}")
+    @Pattern(regexp = "^[a-zA-Z0-9_-]{2,40}$", message = "{validation.agent.pattern}")
     String agent,
 
-    @NotBlank(message = "stable es obligatorio")
-    @Pattern(regexp = "^[a-zA-Z0-9._:-]{2,80}$", message = "stable formato inválido")
+    @NotBlank(message = "{validation.stable.notBlank}")
+    @Pattern(regexp = "^[a-zA-Z0-9._:-]{2,80}$", message = "{validation.stable.pattern}")
     String stable,
 
-    @Pattern(regexp = "^[a-zA-Z0-9._:-]{2,80}$", message = "canary formato inválido")
+    @Pattern(regexp = "^[a-zA-Z0-9._:-]{2,80}$", message = "{validation.canary.pattern}")
     String canary,
 
-    @Min(value = 0, message = "percent debe ser >= 0")
-    @Max(value = 100, message = "percent debe ser <= 100")
+    @Min(value = 0, message = "{validation.percent.min}")
+    @Max(value = 100, message = "{validation.percent.max}")
     int percent
 ) {
-    @AssertTrue(message = "percent>0 requiere canary no vacío")
+    @AssertTrue(message = "{validation.percent.canaryRequired}")
     public boolean isCanaryRequiredWhenPercent() {
         if (percent > 0) {
             return canary != null && !canary.isBlank();
@@ -39,7 +39,7 @@ public record SwitchModelRequest(
         return true;
     }
 
-    @AssertTrue(message = "Si percent>0 canary debe ser distinto de stable")
+    @AssertTrue(message = "{validation.percent.canaryDifferent}")
     public boolean isCanaryDifferentFromStable() {
         if (percent > 0 && canary != null && !canary.isBlank()) {
             return !stable.equals(canary);

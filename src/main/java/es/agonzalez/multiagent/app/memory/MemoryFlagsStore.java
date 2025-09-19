@@ -8,25 +8,26 @@ import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import es.agonzalez.multiagent.app.config.AppProperties;
 import jakarta.annotation.PostConstruct;
 
 @Component
 public class MemoryFlagsStore {
-    
-    @Value("${multiagent.datadir}")
-    private String dataDir;
+
+    @Autowired
+    private AppProperties appProperties;
     private Path basedir;
     private final ObjectMapper om;
     public MemoryFlagsStore(ObjectMapper om) { this.om = om; }
 
     @PostConstruct
     public void init() throws  IOException {
-        basedir = Paths.get(dataDir, "flags");
+        basedir = Paths.get(appProperties.getDatadir(), "flags");
         Files.createDirectories(basedir);    
     }
 

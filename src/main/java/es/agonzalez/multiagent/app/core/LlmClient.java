@@ -12,14 +12,20 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import es.agonzalez.multiagent.app.util.Sanitizers;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.agonzalez.multiagent.app.core.models.LlmResponse;
+import es.agonzalez.multiagent.app.core.llm.exceptions.*;
 import es.agonzalez.multiagent.app.core.models.Message;
 import es.agonzalez.multiagent.app.core.models.dto.OllamaChatResponse;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import jakarta.annotation.PostConstruct;
 
 @Component
@@ -32,16 +38,21 @@ public class LlmClient {
     @Autowired
     private es.agonzalez.multiagent.app.config.AppProperties props;
 
-    public LlmClient(ObjectMapper om) {
+    @Autowired
+    private Tracer tracer;
+
+    private final MessageSource messages;
+
+    public LlmClient(ObjectMapper om, MessageSource messages) {
         this.om = om;
+        this.messages = messages;
     }
     
     @PostConstruct
     public HttpClient getClient() {
         if(http == null){
-            this.baseUrl = props.getLlm().getUrl();
+            this.baseUrl = Sanitizers.normalizePathLike(props.getLlm().getUrl());
             this.timeoutMs = (int) props.getLlm().getTimeoutMs();
-            this.baseUrl = baseUrl == null ? "" : baseUrl.replaceAll("[\\r\\n]", "").replaceAll("/+$(?!/)", "");
             http = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build();
         }
         return http;
@@ -55,7 +66,15 @@ public class LlmClient {
             return new LlmResponse("", -1, -1);
         }
 
-        try {
+        // Crear span para tracing de llamada LLM
+        Span span = tracer.nextSpan()
+            .name("llm.request")
+            .tag("llm.model", model)
+            .tag("llm.endpoint", call)
+            .tag("llm.generative", String.valueOf(generative))
+            .tag("llm.message_count", String.valueOf(safeMessages.size()));
+
+        try (Tracer.SpanInScope ws = tracer.withSpan(span.start())) {
             var payload = new HashMap<String, Object>();
             payload.put("model", model);
             payload.putIfAbsent("stream", false);
@@ -80,18 +99,35 @@ public class LlmClient {
             .build();
 
             var resp = getClient().send(req, HttpResponse.BodyHandlers.ofString());
-            if(resp.statusCode() /100 != 2) {
-                throw new RuntimeException("LLM HTTP " + resp.statusCode() + ": " + resp.body());
+            int statusCode = resp.statusCode();
+            if(statusCode < 200 || statusCode >= 300) {
+                span.tag("error", "true")
+                    .tag("http.status_code", String.valueOf(statusCode))
+                    .event("llm.provider.error");
+                throw new LlmProviderException(statusCode, resp.body());
             }
             OllamaChatResponse json = om.readValue(resp.body(), OllamaChatResponse.class);
             int prompt = json.promptCount();
             int completion = json.completionCount();
             String content = json.contentOrEmpty(generative);
+
+            // Añadir métricas de tokens al span
+            span.tag("llm.prompt_tokens", String.valueOf(prompt))
+                .tag("llm.completion_tokens", String.valueOf(completion))
+                .tag("llm.total_tokens", String.valueOf(prompt + completion))
+                .tag("http.status_code", String.valueOf(statusCode));
+
             return new LlmResponse(content, prompt, completion);
 
-
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Error llamando al LLM: " + e.getMessage(), e);
+        } catch (IOException e) {
+            span.tag("error", "true").event("llm.io.error");
+            throw new LlmUnknownException("io_error: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            span.tag("error", "true").event("llm.timeout.error");
+            Thread.currentThread().interrupt();
+            throw new LlmTimeoutException("interrupted", e);
+        } finally {
+            span.end();
         }
     }
 
@@ -105,5 +141,9 @@ public class LlmClient {
     @org.springframework.scheduling.annotation.Async
     public CompletableFuture<LlmResponse> chatAsync(String model, List<Message> messages, Map<String, Object> params, boolean generative) {return CompletableFuture.supplyAsync(() -> this.chatBlocking(model, messages, params, generative)); }
     private LlmResponse chatBlocking(String model, List<Message> messages, Map<String, Object> params, boolean generative){ return chat(model, messages, params, generative); }
-    public CompletableFuture<LlmResponse> fallback(String model, List<Message> messages, Map<String, Object> params, Throwable t) { return CompletableFuture.completedFuture(LlmResponse.of("Ahora mismo estoy ocupado. Intentelo de nuevo más tarde")); } 
+    public CompletableFuture<LlmResponse> fallback(String model, List<Message> messages, Map<String, Object> params, Throwable t) { 
+        var locale = LocaleContextHolder.getLocale();
+        String msg = this.messages.getMessage("llm.fallback.busy", null, "Busy, please retry later", locale);
+        return CompletableFuture.completedFuture(LlmResponse.of(msg)); 
+    } 
 }   

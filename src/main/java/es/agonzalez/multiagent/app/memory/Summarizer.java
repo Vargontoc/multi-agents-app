@@ -3,23 +3,25 @@ package es.agonzalez.multiagent.app.memory;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import es.agonzalez.multiagent.app.config.AppProperties;
 import es.agonzalez.multiagent.app.core.LlmClient;
 import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.models.Message;
 
 @Component
 public class Summarizer {
-    @Value("${multiagent.summarization-every}")
-    private  int every;
+    @Autowired
+    private AppProperties appProperties;
     @Autowired
     private LlmClient client;
     @Autowired
     private ModelRegistry registry;
 
-    public boolean shouldSummarize(int totalTurns) { return totalTurns > 0 && totalTurns % every == 0; }
+    public boolean shouldSummarize(int totalTurns) {
+        return totalTurns > 0 && totalTurns % appProperties.getSummarizationEvery() == 0;
+    }
 
     public String summarize(List<String> historyLines) {
         var recent = historyLines.size() > 120 ? historyLines.subList(historyLines.size() - 120, historyLines.size()) : historyLines;
@@ -40,7 +42,7 @@ public class Summarizer {
             Message.system(sys),    
             Message.user(conversation)), registry.defaults(), false);
 
-        var s = resp.contet() == null ? "" : resp.contet().strip();
+        var s = resp.content() == null ? "" : resp.content().strip();
         return s.length()    <= 500 ? s : s.substring(0,499) + "...";
     }
 

@@ -15,7 +15,7 @@ import jakarta.validation.constraints.NotBlank;
 public class SecurityProperties {
 
     /** API key esperada para autenticación de peticiones. */
-    @NotBlank(message = "security.apikey es obligatorio")
+    @NotBlank(message = "{validation.security.apikey.notBlank}")
     private String apikey;
 
     public String getApikey() { return apikey; }

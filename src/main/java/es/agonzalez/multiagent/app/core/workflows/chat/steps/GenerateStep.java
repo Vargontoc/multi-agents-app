@@ -9,14 +9,17 @@ import java.util.Map;
 import java.util.Optional;
 
 import es.agonzalez.multiagent.app.core.LlmClient;
+import es.agonzalez.multiagent.app.config.MetricsService;
 import es.agonzalez.multiagent.app.core.ModelRegistry;
 import es.agonzalez.multiagent.app.core.models.LlmResponse;
+import es.agonzalez.multiagent.app.core.llm.exceptions.LlmException;
 import es.agonzalez.multiagent.app.core.models.Message;
 import es.agonzalez.multiagent.app.core.selectors.ModelSelectors;
 import es.agonzalez.multiagent.app.core.workflows.Step;
 import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatInput;
 import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatResult;
 import es.agonzalez.multiagent.app.memory.MemoryService;
+import org.slf4j.MDC;
 
 public class GenerateStep implements Step<ChatInput, ChatResult> {
     
@@ -24,11 +27,13 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
     private final ModelRegistry models;
     private final MemoryService memory;
     private final ModelSelectors selector;
-    public GenerateStep(LlmClient client, MemoryService memory, ModelRegistry models, ModelSelectors selector) {
+    private final MetricsService metrics;
+    public GenerateStep(LlmClient client, MemoryService memory, ModelRegistry models, ModelSelectors selector, MetricsService metrics) {
         this.client = client;
         this.memory = memory;
         this.models = models;
         this.selector = selector;
+        this.metrics = metrics;
     }
 
     @SuppressWarnings("unchecked")
@@ -69,17 +74,30 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
             messages.add(Message.user(inp));
 
             String model = selector.pick("Agent.Chat", input.userId());
+            MDC.put("model", model);
             Instant start = Instant.now();
             var props = models.defaults();
-            LlmResponse resp = client.chat(model, messages, props, false);
-            long latency = Duration.between(start, Instant.now()).toMillis();
+            LlmResponse resp;
+            try {
+                resp = client.chat(model, messages, props, false);
+                long latency = Duration.between(start, Instant.now()).toMillis();
+                metrics.recordLlmSuccess(model, input.intent(), resp.promptToken(), resp.completionToken(), latency);
+            } catch (LlmException lex) {
+                long latency = Duration.between(start, Instant.now()).toMillis();
+                metrics.recordLlmErrorWithReason(model, input.intent(), lex.reason(), latency);
+                throw lex;
+            } catch (RuntimeException rte) {
+                long latency = Duration.between(start, Instant.now()).toMillis();
+                metrics.recordLlmErrorWithReason(model, input.intent(), "runtime", latency);
+                throw rte;
+            }
 
-            String answer = cap(resp.contet(), 320);
+            String answer = cap(resp.content(), 320);
 
             memory.appendTurn(input.userId(), "user", input.text());
             memory.appendTurn(input.userId(), "assistant", answer);
 
-            context.put("latencyMs", latency);
+            context.put("latencyMs", context.getOrDefault("latencyMs", -1));
             context.put("model", model);
             context.put("answer", answer);
             context.put("turnCountBefore", history.size());
@@ -87,7 +105,7 @@ public class GenerateStep implements Step<ChatInput, ChatResult> {
             return Optional.empty();
 
 
-        } catch (IOException e) {
+    } catch (IOException e) {
             
             return Optional.of(ChatResult.ok("Estoy teniendo problemas para pensar. Prueba otra vez en unos segundos.", Map.of("degraded", true, "error", e.getClass().getSimpleName())));
         }
