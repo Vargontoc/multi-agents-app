@@ -55,8 +55,6 @@ class TracingConfigTest {
 
     @Test
     void tracingProperties_ValidatesServiceName() {
-        TracingConfig.TracingProperties props = new TracingConfig.TracingProperties();
-
         // Verificar que tiene anotación de validación
         try {
             var field = TracingConfig.TracingProperties.class.getDeclaredField("serviceName");

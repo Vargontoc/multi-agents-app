@@ -1,25 +1,29 @@
 package es.agonzalez.multiagent.app.integration;
 
-import org.junit.jupiter.api.Test;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import es.agonzalez.multiagent.app.config.MetricsService;
 import es.agonzalez.multiagent.app.core.IntentDetector;
-import es.agonzalez.multiagent.app.core.LlmClient;
 import es.agonzalez.multiagent.app.core.mappers.ResponseMapper;
-import es.agonzalez.multiagent.app.core.models.LlmResponse;
 import es.agonzalez.multiagent.app.core.workflows.WorkflowRunner;
 import es.agonzalez.multiagent.app.core.workflows.chat.ChatWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.recipe.models.RecipeResponse;
 import es.agonzalez.multiagent.app.dtos.AIRequest;
 import es.agonzalez.multiagent.app.dtos.AIResponse;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-import java.util.Map;
 
 /**
  * Test de integración end-to-end para el workflow de recetas completo.
@@ -28,14 +32,12 @@ import java.util.Map;
 class RecipeWorkflowIntegrationTest {
 
     private WorkflowRunner workflowRunner;
-    private LlmClient llmClient;
     private ChatWorkflow chatWorkflow;
     private RecipeWorkflow recipeWorkflow;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         // Create mock dependencies
-        llmClient = mock(LlmClient.class);
         MetricsService metricsService = mock(MetricsService.class);
 
         // Create real instances with mocked dependencies
@@ -231,7 +233,7 @@ class RecipeWorkflowIntegrationTest {
             var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, value);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set field " + fieldName, e);
         }
     }

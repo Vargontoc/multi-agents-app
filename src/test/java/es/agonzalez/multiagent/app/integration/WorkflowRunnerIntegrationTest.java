@@ -1,7 +1,15 @@
 package es.agonzalez.multiagent.app.integration;
 
-import org.junit.jupiter.api.Test;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
@@ -9,9 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 import es.agonzalez.multiagent.app.config.AppProperties;
 import es.agonzalez.multiagent.app.config.MetricsService;
 import es.agonzalez.multiagent.app.core.IntentDetector;
-import es.agonzalez.multiagent.app.core.LlmClient;
 import es.agonzalez.multiagent.app.core.mappers.ResponseMapper;
-import es.agonzalez.multiagent.app.core.models.LlmResponse;
 import es.agonzalez.multiagent.app.core.workflows.WorkflowRunner;
 import es.agonzalez.multiagent.app.core.workflows.chat.ChatWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatResult;
@@ -19,12 +25,6 @@ import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
 import es.agonzalez.multiagent.app.core.workflows.recipe.models.RecipeResponse;
 import es.agonzalez.multiagent.app.dtos.AIRequest;
 import es.agonzalez.multiagent.app.dtos.AIResponse;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-import java.util.Map;
 
 /**
  * Test de integración enfocado específicamente en WorkflowRunner y sus dependencias inmediatas.
@@ -45,23 +45,24 @@ class WorkflowRunnerIntegrationTest {
 
     private WorkflowRunner workflowRunner;
 
+    @SuppressWarnings("removal")
     @MockBean
     private ChatWorkflow chatWorkflow;
 
+    @SuppressWarnings("removal")
     @MockBean
     private RecipeWorkflow recipeWorkflow;
 
+    @SuppressWarnings("removal")
     @MockBean
     private MetricsService metricsService;
 
-    @MockBean
-    private LlmClient llmClient;
 
     private ResponseMapper responseMapper;
     private IntentDetector intentDetector;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         responseMapper = new ResponseMapper();
         intentDetector = new IntentDetector();
 
@@ -228,7 +229,7 @@ class WorkflowRunnerIntegrationTest {
             var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, value);
-        } catch (Exception e) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
             throw new RuntimeException("Failed to set field " + fieldName, e);
         }
     }

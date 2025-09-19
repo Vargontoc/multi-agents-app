@@ -29,7 +29,7 @@ public class FileMemoryStoreTest {
     private AppProperties props;
 
     @BeforeEach
-    void setup() throws Exception {
+    public void setup() throws Exception {
         props = new AppProperties();
         props.setDatadir(tmp.toString());
         props.setMaxHistoryLines(5); // forzamos rotación rápida

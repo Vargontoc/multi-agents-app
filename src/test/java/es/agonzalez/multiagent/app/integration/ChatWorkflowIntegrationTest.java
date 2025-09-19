@@ -1,9 +1,25 @@
 package es.agonzalez.multiagent.app.integration;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.Map;
 
-import es.agonzalez.multiagent.app.config.AppProperties;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 import es.agonzalez.multiagent.app.config.MetricsService;
 import es.agonzalez.multiagent.app.core.IntentDetector;
 import es.agonzalez.multiagent.app.core.LlmClient;
@@ -15,12 +31,6 @@ import es.agonzalez.multiagent.app.core.workflows.chat.models.ChatResult;
 import es.agonzalez.multiagent.app.core.workflows.recipe.RecipeWorkflow;
 import es.agonzalez.multiagent.app.dtos.AIRequest;
 import es.agonzalez.multiagent.app.dtos.AIResponse;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-import java.util.Map;
 
 /**
  * Test de integración end-to-end para el workflow de chat completo.
@@ -34,7 +44,7 @@ class ChatWorkflowIntegrationTest {
     private RecipeWorkflow recipeWorkflow;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         // Create mock dependencies
         llmClient = mock(LlmClient.class);
         MetricsService metricsService = mock(MetricsService.class);
@@ -204,7 +214,7 @@ class ChatWorkflowIntegrationTest {
             var field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, value);
-        } catch (Exception e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Failed to set field " + fieldName, e);
         }
     }

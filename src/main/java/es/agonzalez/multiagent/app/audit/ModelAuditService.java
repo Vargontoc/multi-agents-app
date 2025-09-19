@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.agonzalez.multiagent.app.config.AppProperties;
@@ -127,7 +128,7 @@ public class ModelAuditService {
             try {
                 @SuppressWarnings("unchecked") Map<String,Object> parsed = mapper.readValue(ln, Map.class);
                 result.add(parsed);
-            } catch (Exception ex) {
+            } catch (JsonProcessingException | IllegalArgumentException ex) {
                 log.debug("Línea de auditoría malformada ignorada index={} error={}", i, ex.toString());
             }
         }
@@ -158,7 +159,7 @@ public class ModelAuditService {
             try {
                 @SuppressWarnings("unchecked") Map<String,Object> temp = mapper.readValue(ln, Map.class);
                 parsed = temp;
-            } catch (Exception ex) {
+            } catch (JsonProcessingException | IllegalArgumentException ex) {
                 log.debug("Línea auditoría malformada ignorada index={} error={}", i, ex.toString());
                 continue;
             }

@@ -27,8 +27,7 @@ public class FileMemoryStoreTailLoadTest {
     private AppProperties props;
 
     @BeforeEach
-    @SuppressWarnings("unused") // Usado por el ciclo de vida de JUnit
-    void setup() throws Exception {
+    public void setup() throws Exception {
         props = new AppProperties();
         props.setDatadir(tmp.toString());
         props.setMaxHistoryLines(50); // límite para tail

@@ -2,6 +2,8 @@ package es.agonzalez.multiagent.app.core.mappers;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -10,14 +12,12 @@ import es.agonzalez.multiagent.app.core.workflows.recipe.models.RecipeResponse;
 import es.agonzalez.multiagent.app.dtos.AIRequest;
 import es.agonzalez.multiagent.app.dtos.AIResponse;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class ResponseMapperTest {
 
     private ResponseMapper responseMapper;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         responseMapper = new ResponseMapper();
     }
 

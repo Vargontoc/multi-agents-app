@@ -25,7 +25,7 @@ public class FileMemoryStoreMetadataTest {
     AppProperties props;
 
     @BeforeEach
-    void setup() throws Exception {
+    public void setup() throws Exception {
         props = new AppProperties();
         props.setDatadir(tmp.toString());
         props.setMaxHistoryLines(100);
@@ -65,7 +65,9 @@ public class FileMemoryStoreMetadataTest {
         assertThat(baseline).isEqualTo(5);
         Path meta = tmp.resolve("history").resolve("user2.meta");
         // Corromper: modificar checksum manteniendo número
-        String corrupted = "deadbeef:" + "5\n";
+        String corrupted = """
+                           deadbeef:5
+                           """;
         Files.writeString(meta, corrupted);
         FileMemoryStore store2 = new FileMemoryStore();
         ReflectionTestUtils.setField(store2, "props", props);

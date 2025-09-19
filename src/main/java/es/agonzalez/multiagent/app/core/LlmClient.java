@@ -74,7 +74,7 @@ public class LlmClient {
             .tag("llm.generative", String.valueOf(generative))
             .tag("llm.message_count", String.valueOf(safeMessages.size()));
 
-        try (Tracer.SpanInScope ws = tracer.withSpan(span.start())) {
+        try (var ignored = tracer.withSpan(span.start())) {
             var payload = new HashMap<String, Object>();
             payload.put("model", model);
             payload.putIfAbsent("stream", false);

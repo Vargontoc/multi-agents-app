@@ -3,6 +3,7 @@ package es.agonzalez.multiagent.app.config;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -20,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
-import io.github.bucket4j.Refill;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -66,7 +67,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private void rebuildBandwidth() {
         Duration period = parseDuration(props.getRefillPeriod());
-        currentBandwidth = Bandwidth.classic(props.getCapacity(), Refill.greedy(props.getRefillTokens(), period));
+        currentBandwidth = Bandwidth.builder()
+            .capacity(props.getCapacity())
+            .refillGreedy(props.getRefillTokens(), period)
+            .build();
     }
 
     private Duration parseDuration(String val) {
@@ -78,7 +82,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             if (val.endsWith("m")) return Duration.ofMinutes(Long.parseLong(val.substring(0, val.length()-1)));
             if (val.endsWith("h")) return Duration.ofHours(Long.parseLong(val.substring(0, val.length()-1)));
             return Duration.parse(val); // ISO-8601 fallback
-        } catch (Exception e) {
+        } catch (NumberFormatException | DateTimeParseException e) {
             log.warn("Formato de duración inválido '{}' usando 60s por defecto", val);
             return Duration.ofSeconds(60);
         }
@@ -104,14 +108,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    protected boolean shouldNotFilter(@SuppressWarnings("null") HttpServletRequest request) throws ServletException {
         if (!props.isEnabled()) return true;
         String path = request.getRequestURI();
         return excluded.stream().anyMatch(path::startsWith);
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         String apiKey = request.getHeader("X-API-Key");
         if (!StringUtils.hasText(apiKey)) {
