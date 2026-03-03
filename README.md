@@ -1,71 +1,49 @@
-# Multi Agent Service
+# Multi Agent Service AI System
 
-Microservicio **Spring Boot** multi-agente con **workflows**, **memoria por usuario**, **canary de modelos** y **observabilidad**. Diseñado para integrarse con otros servicios
+## Descripción
 
-## ✨ Features
-- Workflows reproducibles (cargar memoria → generar → validar → guardar)
-- Memoria por usuario en ficheros + resumen automático
-- Canary de modelos (A/B) y hot switch
-- Métricas (Prometheus/Micrometer), health, logs JSON
-- API key y fallbacks resilientes
- - Rate limiting por API key (Bucket4j)
+Este proyecto evoluciona de un prototipo inicial a una infraestructura de IA privada y segura, diseñada especificamente para sectores con alta sensibilidad de datos como energía, sanidad y administración púublica.
 
-## 🧩 Arquitectura (resumen)
-![diagram](docs/architecture.md)
+A diferencia de las implementaciones estándar de IA, este sistema utiliza un enfoque "Local-First", garantizando que el procesamiento de datos críticos nunca salga de la infraestructura controlada, cumpliendo con normativas de privacidad y seguridad.
 
-## 🚀 Quickstart
-> Requiere **Ollama** corriendo en tu host: `http://localhost:11434`  
-> Si Ollama está en otra máquina, ajusta `OLLAMA_BASE_URL`.
-cp .env.example .env         # edita la API key 
+## Arquitectura del sistema
 
-### Docker
-docker compose up --build
+El sistema se basa en una arquitectura de microservicios robusta utilizando Spring Boot y un stack de datos avanzado:
+- **IA Orquestador:** Basado en **LangChain4j** para la gestiñon de agentes y memoria de contexto.
+- **Motor de inferencia local:** Integración con **Ollama** para ejecutar modelos (Llama3/Mistral) sin dependencia de nubes externas.
+- **Capa de datos híbrida:** **PostgreSQL** con **pgvector** para el manejo simultáneo de datos relacionales tradicionales y embeddings vectoriales.
+- **Seguridad:** Implementación de **Spring Security** con autenticación mediante **API Keys** para entornos microservicios.
+- **Observabilidad:** Sistema de auditoria persistente que registra la trazabilidad completa de consultas y SQL generado.
 
-### Health check
-curl -s http://localhost:8080/actuator/health
+## Capacidades principales
 
-### Variables de entorno relevantes
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| DATA_DIR | Carpeta base de datos/memorias | ./data |
-| MAX_HISTORY_LINES | Límite de líneas antes de rotar historial | 800 |
-| SUMMARIZATION_EVERY | Cada cuántos turnos resumir | 12 |
-| OLLAMA_BASE_URL | Endpoint Ollama | http://host.docker.internal:11434 |
-| LLM_TIMEOUT_MS | Timeout llamadas LLM (ms) | 5000 |
-| ENV_APIKEY | API key requerida en header `x-api-key` | secret123 |
-| RATELIMIT_ENABLED | Activa/desactiva rate limiting | true |
-| RATELIMIT_CAPACITY | Tokens máximos por ventana | 100 |
-| RATELIMIT_REFILL_TOKENS | Tokens añadidos en cada refill | 100 |
-| RATELIMIT_REFILL_PERIOD | Periodo de refill (e.g. 60s, 5m) | 60s |
+1. Agente RAG (Retrieval-Augmented Generation) 
+Permite realizar consultas sobre documentación técnica privada (PDFs, manuales de infraestructuras, etc)
+**Tecnologia:** Procesamiento de lenguage natural mediante búsqueda semántica en vectores.
 
-### Rate limiting
-Se aplica un bucket por API key (cabecera `X-API-Key`). Defaults configurables vía properties:
-```
-ratelimit.enabled=true
-ratelimit.capacity=100
-ratelimit.refill.tokens=100
-ratelimit.refill.period=60s
-ratelimit.exclude-paths=/actuator/health,/v3/api-docs,/swagger-ui,/swagger-ui.html
-```
-Si se excede la cuota el servicio responde `429` con JSON `{ "error": "rate_limited" }`.
+2. Agente SQL (Businness Intelligence)
+Traduce lenguaje natural a consultas SQL precisas para nalizar bases de datos en tiempo real.
+**Seguridad** Implementación de herramientas de solo lectura (SELECT) para proteger la integridad de datos críticos.
 
-### Uso en Windows
-Los scripts de `scripts/*.sh` requieren WSL, Git Bash o similar. Alternativas:
-1. Ejecutar dentro del contenedor (bash instalado).
-2. Crear versiones `.bat` mínimas (pendiente). Ejemplo manual descarga modelo:
-```
-curl -X POST %OLLAMA_BASE_URL%/api/pull -d "{\"name\":\"llama3:instruct\"}"
+## Despliegue en docker
+El proyecto está totalmente contenedorizado para garantizar la estabilidad entre entornos de desarrollo y producción.
+
+### Requisitos previos
+- Docker
+- Docker Compose
+
+### Comandos
+```bash
+# Construir y ejecutar la aplicación
+docker-compose up -d
+
+# Descargar el modelo de lenguaje
+docker exec -it vargontoc-ollama ollama run llama3
 ```
 
-### Notas de portabilidad
-* Preferir rutas relativas vía `DATA_DIR`.
-* Evitar montar volúmenes en Windows con rutas con espacios.
-* Para rendimiento en WSL: colocar `DATA_DIR` dentro de `/mnt/wsl/...` en lugar de `/mnt/c/` si el I/O es intensivo.
+## Decisiones de arquitectura (ADR)
+* PostgreSQL + pgvector: Se priorizó la consistencia de datos y la reutilización de infraestructura existente en entornos empresariales.
 
-### Scripts útiles
-| Script | Propósito |
-|--------|----------|
-| scripts/download-models.sh | Descarga modelos base en Ollama |
-| scripts/init-app.sh | Inicializa estructura de carpetas y permisos |
+* Ollama: Para eliminar la latencia de red y cumplir con las restricciones legales de soberanía de datos.
 
-Si algún script falla en Windows, replicar los pasos manualmente (ver contenido) o usar WSL.
+* Enfoque asíncrono: El diseño prioriza la comunicación técnica escrita y la documentación clara para facilitar el mantenimiento a largo plazo.

@@ -1,31 +1,33 @@
 services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vargontoc-db-vector
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_agents_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   ollama:
     image: ollama/ollama:latest
-    profiles: ["with_ollama"]
-    container_name: ollama
+    container_name: vargontoc-ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"
     volumes:
-      - ollama:/root/.ollama
-      - ./scripts/download-models.sh:/entrypoint.sh
-    healthcheck: 
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 5s
-    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
-    restart: unless-stopped
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
 
-  multiagent:
-    build: .
-    container_name: multiagent
-    profiles: ["core", "with_ollama"]
-    ports:
-      - "${ENV_SERVER_PORT:-8080}:8080"
-    env_file: .env
-    depends_on:
-      - ollama
-    restart: unless-stopped
 volumes:
-  ollama:
+  pgdata:
+  ollama_data:
+
+
